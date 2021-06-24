@@ -1,0 +1,55 @@
+import json
+import logging
+from geopandas import GeoDataFrame
+
+from yact.YactBase.Provider.BaseProvider import BaseProvider
+from yact.YactBase.scenarios.BaseScenario import BaseScenario
+
+logger = logging.getLogger(__name__)
+
+
+class VaccinationScenario(BaseScenario):
+    def __init__(self,
+                 provider: BaseProvider,
+                 ranges: [],
+                 range_type: str = "time"):
+        self._ranges: [] = ranges
+        super().__init__(
+            name="vaccination",
+            filter_time="2019-01-01,2021-02-01",
+            filter_query=
+            "healthcare:speciality=vaccination or vaccination=covid19 or "
+            "healthcare=vaccination_centre",
+            provider=provider,
+            range_type=range_type)
+        logger.debug(
+            "Vaccination Scenario initialized with the following parameters:")
+        logger.debug(f"Used ranges: {ranges}")
+
+    def _postprocess(self, isochrones: [], points: []):
+        gdf = GeoDataFrame()
+        for collection in isochrones:
+            if len(collection.values()) <= 0:
+                continue
+            if gdf.empty:
+                gdf = GeoDataFrame.from_features(collection).dissolve(
+                    by="group_index", aggfunc='sum')
+            else:
+                gdf = gdf.append(
+                    GeoDataFrame.from_features(collection).dissolve(
+                        by="group_index", aggfunc='sum'))
+        if not gdf.empty:
+            gdf = gdf.dissolve(by="group_index", aggfunc='sum')
+            gdf = gdf.append(GeoDataFrame.from_features(points))
+            gdf = gdf.set_crs(epsg=4326)
+            self._geometry_results[str(self._ranges)] = gdf
+        else:
+            logger.warning(
+                "Results were empty. Check the error logs or try another bounding box."
+            )
+
+    def process(self, bbox):
+        point_features = self._get_points(bbox)
+        isochrone_features = self._get_isochrones(features=point_features,
+                                                  ranges=self._ranges)
+        self._postprocess(isochrone_features, point_features)

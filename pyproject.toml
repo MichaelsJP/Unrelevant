@@ -1,0 +1,34 @@
+[tool.poetry]
+name = "yact"
+version = "0.1.0"
+description = "Yet Another Cactus. Gives you functionality you never knew you could need. Enjoy!"
+authors = ["Julian Psotta <julianpsotta@gmail.com>", "Bosse Sottmann <n258@stud.uni-heidelberg.de>"]
+
+[tool.poetry.dependencies]
+python = ">=3.7.1,<4.0"
+Fiona = "^1.8.18"
+requests = "^2.25.1"
+Shapely = "^1.7.1"
+pandas = "^1.2.1"
+geopandas = "^0.8.1"
+routingpy = "^0.3.2"
+ohsomepy = { git = "https://github.com/GIScience/ohsome-py" }
+openrouteservice = "^2.3.3"
+contextily = "^1.1.0"
+geoplot = "<=0.4.0"
+geojson = "^2.5.0"
+
+[tool.poetry.scripts]
+yact = "yact.yact:main"
+
+[tool.poetry.dev-dependencies]
+pytest-console-scripts = "^1.1.0"
+pytest-cov = "^2.11.1"
+tox = "^3.21.4"
+pre-commit = "^2.10.1"
+coverage = "^5.4"
+yapf = "^0.30.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
