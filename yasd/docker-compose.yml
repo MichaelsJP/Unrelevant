@@ -10,7 +10,9 @@ networks:
 
 services:
     postgres:
-        image: kartoza/postgis:latest
+        build: 
+            context: postgres/
+            dockerfile: Dockerfile
         container_name: postgres 
         shm_size: 2G
         environment:
