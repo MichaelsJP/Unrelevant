@@ -6,7 +6,6 @@ RUN apt-get update && apt-get install -y \
     wget \
     unzip
 
-
 RUN mkdir -p /data /data/pop
 RUN chmod -R 777 /data
 
@@ -19,6 +18,7 @@ RUN wget https://cidportal.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_MT_GLO
 RUN unzip /data/pop/GHS_POP_E2015_GLOBE_R2019A_54009_250_V1_0.zip -d /data/pop
 
 
-# init files
-# COPY 01_prep_data.sh docker-entrypoint-initdb.d/98_prep_data.sh
-# COPY 02_initdb.sql docker-entrypoint-initdb.d/99_initdb.sql
+# init script files
+RUN mkdir -p /docker-entrypoint-initdb.d
+COPY ./01_prep_data.sh /docker-entrypoint-initdb.d/98_prep_data.sh
+COPY ./02_initdb-postgis.sh /docker-entrypoint-initdb.d/02_initdb-postgis.sh

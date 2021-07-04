@@ -1,10 +1,7 @@
 #!/bin/sh
-
 set -e
-
 # Perform all actions as $POSTGRES_USER
 export PGUSER="$POSTGRES_USER"
-
 # copied from https://fuzzytolerance.info/blog/2018/12/04/Postgres-PostGIS-in-Docker-for-production/
 # https://pgtune.leopard.in.ua/
 # DB Version: 11
@@ -29,20 +26,16 @@ psql -c "ALTER SYSTEM SET max_wal_size = '2GB';"
 psql -c "ALTER SYSTEM SET max_worker_processes = '2';"
 psql -c "ALTER SYSTEM SET max_parallel_workers_per_gather = '1';"
 psql -c "ALTER SYSTEM SET max_parallel_workers = '2';"
-
-# add postgrereader user
+# add postgresreader user
 psql -c "CREATE USER sampleuser WITH PASSWORD 'samplepassword';"
-
 # create databases
 psql -c "CREATE DATABASE gis;"
-
 # add extensions to databases
 psql gis -c "CREATE EXTENSION IF NOT EXISTS postgis;"
-psql gis -c "CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;"
-psql gis -c "CREATE EXTENSION IF NOT EXISTS addressing_dictionary;"
-
-# restore database if dump file exists
-if [ -f /opt/backups/restore.dump ]; then
-  echo "Restoring backup..."
-  pg_restore -d gis --clean --if-exists /opt/backups/restore.dump
-fi
+# psql gis -c "CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;"
+# psql gis -c "CREATE EXTENSION IF NOT EXISTS pop;"
+# # restore database if dump file exists
+# if [ -f /opt/backups/restore.dump ]; then
+#   echo "Restoring backup..."
+#   pg_restore -d gis --clean --if-exists /opt/backups/restore.dump
+# fi
