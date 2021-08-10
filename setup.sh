@@ -67,6 +67,21 @@ SCRIPT_VERSION="0.0.1"
 # Initialize main functions                                                    #
 ################################################################################
 
+download_population_dataset() {
+  local dataset_url="https://data.worldpop.org/GIS/Population/Global_2000_2020/2020/0_Mosaicked/ppp_2020_1km_Aggregated.tif"
+  local current_directory=$PWD
+  local dataset_local_path="${current_directory}/population.tif"
+  if [ -e "${dataset_local_path}" ]; then
+    say "Population dataset exists. Skipping download"
+    echo "${dataset_local_path}"
+  else
+    say "Download the population dataset. This will take some time."
+    curl --header "Host: data.worldpop.org" --user-agent "Mozilla/5.0 (X11; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0" --header "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" --header "Accept-Language: en-US,en;q=0.5" --header "Upgrade-Insecure-Requests: 1" --header "Sec-Fetch-Dest: document" --header "Sec-Fetch-Mode: navigate" --header "Sec-Fetch-Site: none" --header "Sec-Fetch-User: ?1" "$dataset_url" --output "${dataset_local_path}"
+    say "Successfully downloaded $dataset_local_path"
+    echo "${dataset_local_path}"
+  fi
+}
+
 ################################################################################
 ################################################################################
 # Main program                                                                 #
@@ -132,6 +147,11 @@ main() {
     docker_container_clean unrelevant 2
   fi
   docker-compose -f "$START_DIRECTORY/.docker/docker-compose.yml" up -d
+  docker exec -it unrelevant /bin/bash -c "export PGPASSWORD=admin && psql -h postgres -U admin gis -c 'CREATE EXTENSION IF NOT EXISTS postgis_raster';"
+  # Download the population dataset if not present
+  POPULATION_DATASET=$(download_population_dataset)
+
+
 
   # Setting defaults
   #  check_mandatory_argument "CONFIG_PREFIX" "$CONFIG_PREFIX" "app.config."
