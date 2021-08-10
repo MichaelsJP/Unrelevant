@@ -135,11 +135,13 @@ add_to_cleanup() {
 cleanup() {
   echo "============================"
   say "Initializing Cleanup-Routine incase trap didn't catch it."
-  while IFS= read -r line; do
-    say "Cleaning $line"
-    rm -rf "$line"
-  done <"$CLEANUP_FILE"
-  rm -rf "$CLEANUP_FILE"
+  if [[ -f "$CLEANUP_FILE" ]]; then
+    while IFS= read -r line; do
+      say "Cleaning $line"
+      rm -rf "$line"
+    done <"$CLEANUP_FILE"
+    rm -rf "$CLEANUP_FILE"
+  fi
   echo "============================"
 }
 
