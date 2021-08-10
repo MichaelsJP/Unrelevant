@@ -5,6 +5,8 @@
 .idea/**/dictionaries
 .idea/**/shelf
 .vscode/
+population.tif
+
 # Generated files
 .idea/**/contentModel.xml
 
