@@ -1,0 +1,41 @@
+version: '3.0'
+
+volumes:
+    unrelevant:
+
+networks:
+    unrelevant:
+
+services:
+  postgres:
+    image: kartoza/postgis:13
+    container_name: unrelevant
+    env_file:
+      - ./example.env
+    volumes:
+      - unrelevant:/var/lib/postgresql # To also remove the persistent storage run docker-compose down -v
+    environment:
+      ALLOW_IP_RANGE: 0.0.0.0/0
+      DEFAULT_ENCODING: UTF8
+      DEFAULT_COLLATION: en_US.UTF-8
+      DEFAULT_CTYPE: en_US.UTF-8
+    ports:
+      - 5432:5432
+    restart: unless-stopped
+    healthcheck:
+      test: "exit 0"
+    networks:
+      - unrelevant
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin4
+    depends_on:
+        - postgres
+    ports:
+        - "53603:53603"
+        - "80:80"
+    environment:
+        PGADMIN_DEFAULT_EMAIL: admin@example.com
+        PGADMIN_DEFAULT_PASSWORD: admin
+    networks:
+        - unrelevant
