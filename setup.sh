@@ -84,6 +84,21 @@ download_population_dataset() {
   fi
 }
 
+download_ohsome_dataset() {
+  local dataset_url="https://downloads.ohsome.org/OSHDB/v0.6/europe/germany/baden-wuerttemberg/heidelberg_68900_2020-07-23.oshdb.mv.db"
+  local current_directory=$PWD
+  local dataset_local_path="${current_directory}/ohsome.oshdb.mv.db"
+  if [ -e "${dataset_local_path}" ]; then
+    say "Ohsome database exists. Skipping download."
+    echo "${dataset_local_path}"
+  else
+    say "Download the ohsome database. This will take some time."
+    curl --header "Host: downloads.ohsome.org" --user-agent "Mozilla/5.0 (X11; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0" --header "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" --header "Accept-Language: en-US,en;q=0.5" --header "Upgrade-Insecure-Requests: 1" --header "Sec-Fetch-Dest: document" --header "Sec-Fetch-Mode: navigate" --header "Sec-Fetch-Site: none" --header "Sec-Fetch-User: ?1" "$dataset_url" --output "${dataset_local_path}"
+    say "Successfully downloaded ${dataset_local_path}."
+    echo "${dataset_local_path}"
+  fi
+}
+
 ################################################################################
 ################################################################################
 # Main program                                                                 #
@@ -96,6 +111,8 @@ main() {
   CheckNonRoot
   check_program_installed docker
   check_program_installed docker-compose
+  check_program_installed tar
+  check_program_installed python
 
   while builtin getopts "hvrwo:" opt "${@}"; do
     case $opt in
@@ -143,6 +160,14 @@ main() {
   # Create output folder
   OUT_DIRECTORY=$(create_folder "$OUT_DIRECTORY" "$OVERWRITE_OUTPUT")
 
+  # Get the population data set
+  POPULATION_DATASET_PATH=$(download_population_dataset)
+
+  # Unpack the shipped nuts boundaries
+  say "Unpack the nuts boundary layers:"
+  NUTS_DATASET_PATH="$START_DIRECTORY/data/nuts.tar.xz"
+  tar -xvf "$NUTS_DATASET_PATH" -C "$START_DIRECTORY/data"
+
   # Refresh the docker setup
   if [ "$REFRESH_DOCKER" == "true" ] || [ "$REFRESH_DOCKER" == "True" ] || [ "$REFRESH_DOCKER" == "TRUE" ]; then
     say "Refreshing docker setup."
@@ -160,9 +185,6 @@ main() {
   done
 
 #  docker exec -it "$DOCKER_DATABASE_CONTAINER_NAME" /bin/bash -c "export PGPASSWORD=admin && psql -h postgres -U admin gis -c 'CREATE EXTENSION IF NOT EXISTS postgis_raster';"
-
-  # Download the population dataset if not present
-  POPULATION_DATASET_PATH=$(download_population_dataset)
 
   # Copy the population dataset to the container
   docker cp "$POPULATION_DATASET_PATH" "$DOCKER_DATABASE_CONTAINER_NAME":/scripts/population.tif
