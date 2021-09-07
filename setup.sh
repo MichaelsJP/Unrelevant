@@ -64,15 +64,18 @@ if [[ ! -d "$DIR" ]]; then DIR="$PWD"; fi
 ################################################################################
 SCRIPT_VERSION="0.0.1"
 DOCKER_DATABASE_CONTAINER_NAME="unrelevant"
+DOCKER_ORS_CONTAINER_NAME="ors-app"
 POPULATION_TABLE="wpop"
 ################################################################################
 # Initialize main functions                                                    #
 ################################################################################
 
 download_population_dataset() {
-  local dataset_url="https://data.worldpop.org/GIS/Population/Global_2000_2020/2020/0_Mosaicked/ppp_2020_1km_Aggregated.tif"
   local current_directory=$PWD
-  local dataset_local_path="${current_directory}/population.tif"
+  # shellcheck disable=SC2164
+  cd "$START_DIRECTORY"
+  local dataset_url="https://data.worldpop.org/GIS/Population/Global_2000_2020/2020/0_Mosaicked/ppp_2020_1km_Aggregated.tif"
+  local dataset_local_path="${START_DIRECTORY}/data/population.tif"
   if [ -e "${dataset_local_path}" ]; then
     say "Population dataset exists. Skipping download."
     echo "${dataset_local_path}"
@@ -82,6 +85,27 @@ download_population_dataset() {
     say "Successfully downloaded ${dataset_local_path}."
     echo "${dataset_local_path}"
   fi
+  # shellcheck disable=SC2164
+  cd "$current_directory"
+}
+
+download_germany_osm_pbf_dataset() {
+  local current_directory=$PWD
+  # shellcheck disable=SC2164
+  cd "$START_DIRECTORY"
+  local dataset_url="http://download.geofabrik.de/europe/germany-latest.osm.pbf"
+  local dataset_local_path="${START_DIRECTORY}/data/germany.osm.pbf"
+  if [ -e "${dataset_local_path}" ]; then
+    say "OSM dataset exists. Skipping download."
+    echo "${dataset_local_path}"
+  else
+    say "Download the osm dataset. This will take some time."
+    curl --header "Host: download.geofabrik.de" --header "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36" --header "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9" --header "Accept-Language: en-US,en;q=0.9,de-DE;q=0.8,de;q=0.7,en-GB;q=0.6" "$dataset_url" -L -o "${dataset_local_path}"
+    say "Successfully downloaded ${dataset_local_path}."
+    echo "${dataset_local_path}"
+  fi
+  # shellcheck disable=SC2164
+  cd "$current_directory"
 }
 
 download_ohsome_dataset() {
@@ -163,6 +187,9 @@ main() {
   # Get the population data set
   POPULATION_DATASET_PATH=$(download_population_dataset)
 
+  # Get the germany pbf data set
+  OSM_GERMANY_DATASET_PATH=$(download_germany_osm_pbf_dataset)
+
   # Unpack the shipped nuts boundaries
   say "Unpack the nuts boundary layers:"
   NUTS_DATASET_PATH="$START_DIRECTORY/data/nuts.tar.xz"
@@ -174,7 +201,7 @@ main() {
     docker_container_clean "$DOCKER_DATABASE_CONTAINER_NAME" 2
   fi
   say "Starting the docker-compose stack."
-  docker-compose -f "$START_DIRECTORY/docker-compose.yml" up -d > /dev/null 2>&1
+  docker-compose -f "$START_DIRECTORY/docker-compose.yml" up --force-recreate -d > /dev/null 2>&1
   sleep 2
   # Wait for the database to be ready
   CONTAINER_STATUS=""
@@ -200,6 +227,13 @@ main() {
   else
     say "Population table exists. Skipping import."
   fi
+
+  say "Waiting for ors to become ready."
+  API_STATUS=""
+  while [[ "${API_STATUS}" != *"{\"status\":\"ready\"}"* ]]; do
+    API_STATUS=$(docker exec -it "$DOCKER_ORS_CONTAINER_NAME" /bin/bash -c "curl http://localhost:8080/ors/health")
+    sleep 1
+  done
 
   # Setting defaults
   #  check_mandatory_argument "CONFIG_PREFIX" "$CONFIG_PREFIX" "app.config."
