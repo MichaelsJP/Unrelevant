@@ -26,6 +26,18 @@ services:
       test: "exit 0"
     networks:
       - unrelevant
+  ohsome-api:
+    image: julianpsotta/ohsome-api:1.3.2
+    container_name: ohsome-api
+    environment:
+      DATA_FILE: "germany.oshdb.mv.db"
+    volumes:
+      - ./data:/opt/data
+    ports:
+      - 8080:8080
+    restart: always
+    networks:
+      - unrelevant
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin4
