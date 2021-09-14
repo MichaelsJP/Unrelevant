@@ -31,5 +31,4 @@ class OpenRouteServiceProvider(BaseProvider):
                                     range=iso_range,
                                     smoothing=0,
                                     range_type=range_type,
-                                    validate=False,
-                                    attributes=['total_pop'])
+                                    validate=False)
