@@ -8,10 +8,10 @@ logger = logging.getLogger(__name__)
 
 class BaseProvider(metaclass=ABCMeta):
     def __init__(self, name: str, api_key: str):
-        if len(api_key) <= 0:
-            raise MissingAPIKeyError(self.provider_name)
-        self._api_key = api_key
         self._name = name
+        if not api_key or len(api_key) <= 0:
+            raise MissingAPIKeyError(self)
+        self._api_key = api_key
         logger.debug(
             "Base Provider initialized with the following arguments: ")
         logger.debug(f"Provider name: {name}")
