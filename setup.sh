@@ -198,10 +198,13 @@ main() {
   # Refresh the docker setup
   if [ "$REFRESH_DOCKER" == "true" ] || [ "$REFRESH_DOCKER" == "True" ] || [ "$REFRESH_DOCKER" == "TRUE" ]; then
     say "Refreshing docker setup."
-    docker_container_clean "$DOCKER_DATABASE_CONTAINER_NAME" 2
+    docker-compose -f "$START_DIRECTORY/docker-compose.yml" down -v --rmi=local > /dev/null 2>&1
   fi
+  say "Stopping docker-compose stack."
+  docker-compose -f "$START_DIRECTORY/docker-compose.yml" down > /dev/null 2>&1
+  sleep 2
   say "Starting the docker-compose stack."
-  docker-compose -f "$START_DIRECTORY/docker-compose.yml" up --force-recreate -d > /dev/null 2>&1
+  docker-compose -f "$START_DIRECTORY/docker-compose.yml" up -d > /dev/null 2>&1
   sleep 2
   # Wait for the database to be ready
   CONTAINER_STATUS=""
