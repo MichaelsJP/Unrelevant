@@ -229,7 +229,7 @@ dmypy.json
 output
 
 ors
-/data/germany.osm.pbf
+/data/*.osm.pbf
 /data/NUTS_RG_01M_2021_4326.geojson
 /data/NUTS_RG_01M_2021_4326_LEVL_0.geojson
 /data/NUTS_RG_01M_2021_4326_LEVL_1.geojson
