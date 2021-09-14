@@ -53,7 +53,6 @@ class BaseScenario(object):
             for feature in features['features']:
                 coords = feature['geometry']['coordinates']
                 isochrone = self._get_isochrone(coords=coords, ranges=ranges)
-                isochrone['name'] = str(ranges)
                 isochrones.append(isochrone)
         except KeyError:
             logger.error(
