@@ -16,7 +16,7 @@ class VaccinationScenario(BaseScenario):
         self._ranges: [] = ranges
         super().__init__(
             name="vaccination",
-            filter_time="2019-01-01,2021-02-01",
+            filter_time="2020-01-01",
             filter_query=
             "healthcare:speciality=vaccination or vaccination=covid19 or "
             "healthcare=vaccination_centre",
