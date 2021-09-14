@@ -11,6 +11,7 @@ __version__ = pkg_resources.get_distribution("yact").version
 from yact.YactBase.Provider.HereProvider import HereProvider
 from yact.YactBase.Provider.OpenRouteServiceProvider import OpenRouteServiceProvider
 from yact.YactBase.Provider.ValhallaProvider import ValhallaProvider
+from yact.YactBase.scenarios.RecreationScenario import RecreationScenario
 from yact.YactBase.scenarios.BaseScenario import BaseScenario
 from yact.YactBase.scenarios.VaccinationScenario import VaccinationScenario
 from yact.exceptions.BaseExceptions import ProviderNotImplementedError, ScenarioNotImplementedError
@@ -29,10 +30,10 @@ parser.add_argument('outputFolder',
 parser.add_argument(
     '-s',
     '--scenario',
-    help='Provide the scenario to calculate. Default: vaccination',
-    choices=['vaccination'],
+    help='Provide the scenario to calculate. Default: recreation',
+    choices=['vaccination, recreation'],
     type=str,
-    default="vaccination")
+    default="recreation")
 
 parser.add_argument(
     '-p',
@@ -62,7 +63,7 @@ parser.add_argument(
     help=
     'Provide a bounding box to query the scenarios for. Default: "8.67066,49.41423,8.68177,49.4204"',
     type=str,
-    default="8.563508,49.34798,8.81196,49.474862")
+    default="8.667398,49.407718,8.719677,49.412392")
 
 parser.add_argument(
     '-r',
@@ -123,6 +124,8 @@ def main():
         scenario = VaccinationScenario(provider=provider,
                                        ranges=ranges,
                                        range_type=range_type)
+    elif str(args.scenario).lower() == 'recreation':
+        scenario = RecreationScenario(provider=provider)
     else:
         raise ScenarioNotImplementedError(str(args.scenario))
 
