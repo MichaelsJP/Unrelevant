@@ -29,7 +29,8 @@ class BaseScenario(object):
         self._range_type = range_type
         self._filter_time = filter_time
         self._filter = filter_query
-        self._ohsome_client = OhsomeClient()
+        self._ohsome_client = OhsomeClient(
+            base_api_url="http://localhost:8080")
         self._geometry_results: {} = {}
         matplotlib.use("agg")
         logger.debug(
