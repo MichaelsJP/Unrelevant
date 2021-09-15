@@ -53,51 +53,6 @@ class RecreationScenario(BaseScenario):
             logger.error(err)
         return isochrones
 
-    @staticmethod
-    def write_result(full_path_geojson, full_path_png, png_title, result):
-        with open(full_path_geojson, 'w') as f:
-            json.dump(json.loads(result.to_json()), f)
-        result = result.to_crs(epsg=3857)
-        ax = result.plot(figsize=(10, 10),
-                         alpha=0.5,
-                         edgecolor='r',
-                         linewidth=3)
-        ctx.add_basemap(ax)
-        plt.title(png_title)
-        plt.savefig(full_path_png)
-        plt.close()
-
-    def write_results(self, output_path: str) -> []:
-        """
-        Write the results to file. If no results are present, nothing will be written.
-        The files are written with the file name and file extension from the input file with some algorithm related additions.
-        @param output_path: Output path where the results should be stored.
-
-        @return: Returns the paths from the written data.
-
-        """
-        current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        output_absolute_path = output_path + f"/{self.scenario_name}_" \
-                                             f"{self._provider.provider_name}_" \
-                                             f"{self._provider.profile}"
-
-        # Make sure output folder exists
-        if not os.path.exists(output_path):
-            os.makedirs(output_path)
-
-        result: GeoDataFrame
-        files = []
-        for name in self._geometry_results.keys():
-            result = self._geometry_results.get(name)
-            cleaned_name = str(name).strip('[').strip(']').replace(',', '_')
-            file_path_geojson = output_absolute_path + f"_{cleaned_name}sec" + f"_{current_time}.geojson"
-            file_path_png = output_absolute_path + f"_{cleaned_name}sec" + f"_{current_time}.png"
-            png_title = f"Scenario: {self.scenario_name} | Provider: {self._provider.provider_name} | Range: {cleaned_name} seconds\nProfile: {self._provider.profile}"
-            self.write_result(file_path_geojson, file_path_png, png_title,
-                              result)
-            files.extend([file_path_geojson, file_path_png])
-        return files
-
     def _postprocess_isochrones(self, isochrones: [], points: [], ranges):
         gdf = GeoDataFrame()
         for category in isochrones:
