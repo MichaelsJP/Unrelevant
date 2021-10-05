@@ -18,6 +18,10 @@ openrouteservice = "^2.3.3"
 contextily = "^1.1.0"
 geoplot = "<=0.4.0"
 geojson = "^2.5.0"
+tqdm = "^4.62.3"
+tqdm-multiprocess = "^0.0.11"
+SQLAlchemy = "^1.4.25"
+psycopg2 = "^2.9.1"
 
 [tool.poetry.scripts]
 yact = "yact.yact:main"
