@@ -29,6 +29,32 @@ class ScenarioNotImplementedError(BaseError):
         super().__init__(self.message)
 
 
+class OhsomeExtentNotFoundError(BaseError):
+    """Exception raised when the ohsome backend can't be queried for its metadata extent.
+
+    Attributes:
+        api -- name of the api
+    """
+
+    def __init__(self, api: str):  # pragma: no cover
+        self.expression = api
+        self.message = f"The api backend doesn't provide a metadata extent: {api}"
+        super().__init__(self.message)
+
+
+class OhsomeQueryError(BaseError):
+    """Exception raised when the ohsome backend can't be queried for its metadata extent.
+
+    Attributes:
+        api -- name of the api
+    """
+
+    def __init__(self, error: str):  # pragma: no cover
+        self.expression = error
+        self.message = f"The ohsome query was not successful with the following error: {error}"
+        super().__init__(self.message)
+
+
 class IndexAccessError(BaseError):  # pragma: no cover
     """Exception raised for errors while accessing an indexed based structure.
 
