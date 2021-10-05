@@ -3,7 +3,7 @@ from abc import ABCMeta
 
 from yact.exceptions.ProviderExceptions import MissingAPIKeyError
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 
 class BaseProvider(metaclass=ABCMeta):

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import argparse
+import configparser
+import json
 import logging
 import os
 from datetime import datetime
@@ -11,88 +13,37 @@ __version__ = pkg_resources.get_distribution("yact").version
 from yact.YactBase.Provider.HereProvider import HereProvider
 from yact.YactBase.Provider.OpenRouteServiceProvider import OpenRouteServiceProvider
 from yact.YactBase.Provider.ValhallaProvider import ValhallaProvider
-from yact.YactBase.scenarios.RecreationScenario import RecreationScenario
+from yact.YactBase.scenarios.RecreationScenario import RecreationScenario, PopulationFetcher
 from yact.YactBase.scenarios.BaseScenario import BaseScenario
 from yact.YactBase.scenarios.VaccinationScenario import VaccinationScenario
 from yact.exceptions.BaseExceptions import ProviderNotImplementedError, ScenarioNotImplementedError
+from yact.exceptions.ConfigExceptions import ConfigFileNotFoundError
 from yact.shared.utilities import dependency_check
 
-LOGGER = logging.getLogger(__name__)
+script_path = os.path.dirname(os.path.realpath(__file__))
+config = configparser.ConfigParser()
 
 parser = argparse.ArgumentParser(description='yact command line utility')
 
 parser.add_argument('--version', action='version', version=f'{__version__}')
 
-parser.add_argument('outputFolder',
-                    help='Provide the folder path where to write results.',
-                    type=str)
-
 parser.add_argument(
-    '-s',
-    '--scenario',
-    help='Provide the scenario to calculate. Default: recreation',
-    choices=['vaccination, recreation'],
-    type=str,
-    default="recreation")
-
-parser.add_argument(
-    '-p',
-    '--provider',
-    help='Provide the provider to calculate the results with. Default: ors',
-    choices=['ors', 'valhalla', 'here'],
-    type=str,
-    default="ors")
-
-parser.add_argument(
-    '-f',
-    '--profile',
-    help=
-    'Provide the provider profile for the routing calculations. Default: car',
-    choices=['car', 'pedestrian'],
-    type=str,
-    default="car")
-
-parser.add_argument('-k',
-                    '--apikey',
-                    help='Provide the provider API key. Example: "1234987234"',
-                    type=str)
-
-parser.add_argument(
-    '-b',
-    '--bbox',
-    help=
-    'Provide a bounding box to query the scenarios for. Default: "8.67066,49.41423,8.68177,49.4204"',
-    type=str,
-    default="8.667398,49.407718,8.719677,49.412392")
-
-parser.add_argument(
-    '-r',
-    '--ranges',
-    help='Provide ranges for the isochrones in seconds. Default: 100',
-    default=[100],
-    nargs='+',
-    type=int)
-
-parser.add_argument(
-    '-t',
-    '--rangetype',
-    help=
-    'Provide the range type for isochrones. For valhalla only time is valid. Default: "time"',
-    choices=["time", "distance"],
-    type=str,
-    default="time")
-
-parser.add_argument('-v',
-                    '--verbosity',
-                    help="Choose logging verbosity. Default: info",
-                    choices=['debug', 'info'],
-                    default='info',
-                    type=str)
-
+    '-c',
+    '--config-file',
+    help='Provide a config file to skip the cli configuration.',
+    type=str)
 args = parser.parse_args()
 
+if args.config_file:
+    config.read(args.config_file)
+else:
+    raise ConfigFileNotFoundError()
+
 log_format = '%(asctime)s  %(module)8s  %(levelname)5s:  %(message)s'
-logging.basicConfig(level=args.verbosity.upper(), format=log_format)
+logger = logging.getLogger()
+
+if logger.hasHandlers():
+    logger.handlers.clear()
 
 args_dict = vars(args)
 
@@ -100,58 +51,108 @@ args_dict = vars(args)
 def main():
     dependency_check("gdalinfo")
 
-    output_folder = args.outputFolder
-    api_key = args.apikey
-    profile = args.profile
-    bbox = args.bbox
-    ranges = args.ranges
-    range_type = args.rangetype
-    verbosity = args.verbosity
+    # Default settings
+    provider = config["DEFAULT"].get("Provider")
+    scenario = config["DEFAULT"].get("Scenario", fallback="recreation")
+    profile = config["DEFAULT"].get("Profile", fallback="car")
+    cities = json.loads(config["DEFAULT"].get("Cities",
+                                              fallback="['heidelberg']"))
+    bbox = config["DEFAULT"].get(
+        "Bbox", fallback="8.667398,49.407718,8.719677,49.412392")
+    ranges = config["DEFAULT"].get("Ranges",
+                                   fallback="[600, 1200, 1800, 3600]")
+    tags = json.loads(config["DEFAULT"].get("Tags"))
+    threads = int(config["DEFAULT"].get("Threads", fallback="2"))
+    range_type = config["DEFAULT"].get("Range_Type", fallback="time")
+    verbosity = config["DEFAULT"].get("Verbosity", fallback="info")
+    output_folder = config["DEFAULT"].get("Output_Folder")
 
-    provider = OpenRouteServiceProvider
-    if str(args.provider).lower() == 'ors':
-        provider = OpenRouteServiceProvider(api_key=api_key, profile=profile)
-    elif str(args.provider).lower() == 'valhalla':
+    # Get database settings
+    database_url = config['postgres'].get("URL")
+    port = config['postgres'].get("Port")
+    user = config['postgres'].get("User")
+    password = config['postgres'].get("Password")
+    database = config['postgres'].get("Database")
+
+    # Logger settings
+    formatter = logging.Formatter(fmt=log_format)
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+    logger = logging.getLogger()
+    logger.setLevel(config["DEFAULT"].get("Verbosity",
+                                          fallback="info").upper())
+    logger.addHandler(handler)
+
+    # Ohsome settings
+    ohsome_api = config["ohsome"].get("URL", fallback="https://api.ohsome.org")
+
+    # Get provider settings
+    if str(provider).lower() == 'ors':
+        api_key = config["openrouteservice"].get("Api_Key")
+        base_url = config["openrouteservice"].get("URL")
+        provider = OpenRouteServiceProvider(
+            api_key=api_key,
+            profile=profile,
+            base_url=base_url if len(base_url) > 0 else None)
+    elif str(provider).lower() == 'valhalla':
         range_type = "time"
-        provider = ValhallaProvider(api_key=api_key, profile=profile)
-    elif str(args.provider).lower() == 'here':
+        api_key = config["Valhalla"].get("Api_Key")
+        base_url = config["Valhalla"].get("URL")
+        provider = ValhallaProvider(
+            api_key=api_key,
+            profile=profile,
+            base_url=base_url if len(base_url) > 0 else None)
+    elif str(provider).lower() == 'here':
+        api_key = config["Here"].get("Api_Key")
         provider = HereProvider(api_key=api_key, profile=profile)
     else:
-        raise ProviderNotImplementedError(str(args.provider))
+        raise ProviderNotImplementedError(str(provider))
 
-    scenario = VaccinationScenario
-    if str(args.scenario).lower() == 'vaccination':
+    # Get scenario settings
+    if str(scenario).lower() == 'vaccination':
         scenario = VaccinationScenario(provider=provider,
                                        ranges=ranges,
-                                       range_type=range_type)
-    elif str(args.scenario).lower() == 'recreation':
-        scenario = RecreationScenario(provider=provider)
+                                       range_type=range_type,
+                                       ohsome_api=ohsome_api)
+    elif str(scenario).lower() == 'recreation':
+        population_fetcher = PopulationFetcher(url=database_url,
+                                               port=port,
+                                               db=database,
+                                               user=user,
+                                               password=password)
+        scenario = RecreationScenario(cities=cities,
+                                      tags=tags,
+                                      provider=provider,
+                                      ohsome_api=ohsome_api,
+                                      threads=threads,
+                                      population_fetcher=population_fetcher)
     else:
-        raise ScenarioNotImplementedError(str(args.scenario))
+        raise ScenarioNotImplementedError(str(scenario))
 
     start = datetime.now()
-    print_ranges = str(ranges).strip('[').strip(']').replace(',', ' ')
-    LOGGER.info("#######Started processing#######")
-    LOGGER.info(
-        f"# Run command: yact {output_folder} -v {verbosity} -s {scenario.scenario_name} -p {provider.provider_name} -f {profile} -r {print_ranges} -t {range_type} -b {bbox} -k  ***"
-    )
-    LOGGER.info(f"# Start time: {start}")
-    LOGGER.info(f"# Provider: {provider.provider_name}")
-    LOGGER.info(f"# Scenario: {scenario.scenario_name}")
-    LOGGER.info(f"# Output Folder: {os.path.abspath(output_folder)}")
-    LOGGER.info("################################")
+    logger.info("#######Started processing#######")
+    logger.info(f"# Start time: {start}")
+    logger.info(f"# Provider: {provider.provider_name}")
+    logger.info(f"# Scenario: {scenario.scenario_name}")
+    logger.info(f"# Profile: {profile}")
+    logger.info(f"# Bbox: {bbox}")
+    logger.info(f"# Ranges: {ranges}")
+    logger.info(f"# Range Type: {range_type}")
+    logger.info(f"# Verbosity: {verbosity}")
+    logger.info(f"# Output Folder: {os.path.abspath(output_folder)}")
+    logger.info("#######Started processing#######")
 
     output_files = process(scenario=scenario,
                            output_folder=output_folder,
                            bbox=bbox)
 
     finish = datetime.now()
-    LOGGER.info("#######Finisched processing#######")
-    LOGGER.info(f"# End time: {finish}")
-    LOGGER.info(f"# Elapsed time: {finish - start}")
-    LOGGER.info(f"# Output Files:")
-    [LOGGER.info(f"# {file}") for file in output_files]
-    LOGGER.info("#######Finisched processing#######")
+    logger.info("#######Finisched processing#######")
+    logger.info(f"# End time: {finish}")
+    logger.info(f"# Elapsed time: {finish - start}")
+    logger.info(f"# Output Files:")
+    [logger.info(f"# {file}") for file in output_files]
+    logger.info("#######Finisched processing#######")
 
 
 def process(scenario: BaseScenario, output_folder: str,

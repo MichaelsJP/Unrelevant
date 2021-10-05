@@ -1,17 +1,20 @@
 import logging
 
-from routingpy import MapboxValhalla
+from routingpy import MapboxValhalla, Valhalla
 
 from yact.YactBase.Provider.BaseProvider import BaseProvider
 from yact.exceptions.ProviderExceptions import ProfileNotImplementedError
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 
 class ValhallaProvider(BaseProvider):
-    def __init__(self, api_key: str, profile: str):
+    def __init__(self, api_key: str, profile: str, base_url: str = None):
         super().__init__(name="valhalla", api_key=api_key)
-        self._api = MapboxValhalla(api_key=self._api_key)
+        if base_url:
+            self._api = Valhalla(base_url=base_url, api_key=self._api_key)
+        else:
+            self._api = MapboxValhalla(api_key=self._api_key)
         self.profile = profile
 
     @BaseProvider.profile.setter

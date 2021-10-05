@@ -1,21 +1,24 @@
 import datetime
 import json
+import geojson
 import logging
 import os
 
 import contextily as ctx
 import matplotlib
 import matplotlib.pyplot as plt
+
 from geopandas import GeoDataFrame
 from ohsome import OhsomeClient
 from openrouteservice.exceptions import ApiError
 from routingpy.exceptions import RouterApiError
 
 from yact.YactBase.Provider.BaseProvider import BaseProvider
+from yact.exceptions.BaseExceptions import OhsomeExtentNotFoundError
 from yact.exceptions.IsochronesExceptions import IsochronesCalculationError
 from yact.exceptions.ProviderExceptions import WrongAPIKeyError
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 
 class BaseScenario(object):
@@ -24,15 +27,19 @@ class BaseScenario(object):
                  filter_time: str,
                  filter_query: str,
                  provider: BaseProvider = None,
-                 range_type: str = "time"):
+                 range_type: str = "time",
+                 ohsome_api: str = "https://api.ohsome.org/v1"):
         self._name = name
         self._provider = provider
         self._range_type = range_type
         self._filter_time = filter_time
         self._filter = filter_query
-        self._ohsome_client = OhsomeClient(
-            base_api_url="http://localhost:8080")
+        self._ohsome_client = OhsomeClient(base_api_url=ohsome_api)
         self._geometry_results: {} = {}
+        self._ohsome_endpoint_spatial_extent = self._get_ohsome_spatial_extent(
+        )
+        self._ohsome_endpoint_temporal_extent = self._get_ohsome_temporal_extent(
+        )
         matplotlib.use("agg")
         logger.debug(
             "Base Scenario initialized with the following parameters:")
@@ -64,14 +71,19 @@ class BaseScenario(object):
             logger.error(err)
         return isochrones
 
-    def _get_isochrone(self, coords: [], ranges: []) -> dict:
+    def _get_isochrone(self, coords: [], filter_query: str, ranges: [], _,
+                       global_tqdm) -> dict:
+        data = {}
         try:
-            return self._provider.isochrones(coords, ranges, self._range_type)
+            data = self._provider.isochrones(coords, ranges, self._range_type)
         except (RouterApiError, ApiError):
             raise WrongAPIKeyError(provider=self._provider)
         except Exception as err:
             raise IsochronesCalculationError(coords=coords,
                                              provider=self._provider)
+        global_tqdm.update()
+        data['filterQuery'] = filter_query
+        return data
 
     @staticmethod
     def write_result(full_path_geojson, full_path_png, png_title, result):
@@ -137,22 +149,45 @@ class BaseScenario(object):
                 file_path_geojson = output_absolute_path + f"_{cleaned_name}sec" + f"_{i}.geojson"
                 png_title = f"Scenario: {self.scenario_name} | Provider: {self._provider.provider_name} | Range: {cleaned_name} seconds\nProfile: {self._provider.profile}\n{i}"
                 row = result.loc[[i]]
-                if row['geometry'].geom_type == 'Polygon':
+                if 'Polygon' in row['geometry'].geom_type.values:
                     self.write_result(file_path_geojson, file_path_png,
                                       png_title, row)
 
         return files
 
-    def _get_points(self, bbox) -> dict:
-        response = self._ohsome_client.elements.centroid.post(
-            bboxes=bbox,
-            time=self._filter_time,
-            filter=self._filter,
-            properties="tags")
-        if 'features' not in response.data.keys():
-            logger.warning("No results for the given coordinates.")
-            return {}
-        return response.data
+    def _get_points_by_bbox(self, bbox: str) -> dict:
+        response = {}
+        if bbox:
+            response = self._ohsome_client.elements.centroid.post(
+                bboxes=bbox,
+                time=self._ohsome_endpoint_temporal_extent,
+                filter=self._filter,
+                properties="tags")
+        if 'features' in response.data.keys():
+            return response.data
+        logger.warning("No results for the given coordinates.")
+        return {}
 
     def __del__(self):
         del self._ohsome_client
+
+    def _get_ohsome_spatial_extent(self):
+        ohsome_metadata = self._ohsome_client.metadata
+        ohsome_extent = None
+        if 'extractRegion' in ohsome_metadata and 'spatialExtent' in ohsome_metadata[
+                'extractRegion']:
+            feature = {
+                "type": "Feature",
+                "geometry": ohsome_metadata['extractRegion']['spatialExtent']
+            }
+            return geojson.FeatureCollection([feature])
+        raise OhsomeExtentNotFoundError(self._ohsome_client.base_api_url)
+
+    def _get_ohsome_temporal_extent(self):
+        ohsome_metadata = self._ohsome_client.metadata
+        ohsome_extent = None
+        if 'extractRegion' in ohsome_metadata and 'temporalExtent' in ohsome_metadata[
+                'extractRegion']:
+            return ohsome_metadata['extractRegion']['temporalExtent'][
+                'toTimestamp']
+        raise OhsomeExtentNotFoundError(self._ohsome_client.base_api_url)

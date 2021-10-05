@@ -5,14 +5,15 @@ from geopandas import GeoDataFrame
 from yact.YactBase.Provider.BaseProvider import BaseProvider
 from yact.YactBase.scenarios.BaseScenario import BaseScenario
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 
 class VaccinationScenario(BaseScenario):
     def __init__(self,
                  provider: BaseProvider,
                  ranges: [],
-                 range_type: str = "time"):
+                 range_type: str = "time",
+                 ohsome_api: str = "https://api.ohsome.org/v1"):
         self._ranges: [] = ranges
         super().__init__(
             name="vaccination",
@@ -21,7 +22,8 @@ class VaccinationScenario(BaseScenario):
             "healthcare:speciality=vaccination or vaccination=covid19 or "
             "healthcare=vaccination_centre",
             provider=provider,
-            range_type=range_type)
+            range_type=range_type,
+            ohsome_api=ohsome_api)
         logger.debug(
             "Vaccination Scenario initialized with the following parameters:")
         logger.debug(f"Used ranges: {ranges}")
@@ -49,7 +51,7 @@ class VaccinationScenario(BaseScenario):
             )
 
     def process(self, bbox):
-        point_features = self._get_points(bbox)
+        point_features = self._get_points_by_bbox(bbox)
         isochrone_features = self._get_isochrones(features=point_features,
                                                   ranges=self._ranges)
         self._postprocess(isochrone_features, point_features)
