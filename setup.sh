@@ -204,7 +204,7 @@ main() {
   docker-compose -f "$START_DIRECTORY/docker-compose.yml" down > /dev/null 2>&1
   sleep 2
   say "Starting the docker-compose stack."
-  docker-compose -f "$START_DIRECTORY/docker-compose.yml" up -d > /dev/null 2>&1
+  docker-compose -f "$START_DIRECTORY/docker-compose.yml" up -d
   sleep 2
   # Wait for the database to be ready
   CONTAINER_STATUS=""
