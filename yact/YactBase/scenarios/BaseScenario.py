@@ -86,7 +86,8 @@ class BaseScenario(object):
         return data
 
     @staticmethod
-    def write_result(full_path_geojson, full_path_png, png_title, result):
+    def write_result(full_path_geojson, full_path_png, png_title,
+                     result: GeoDataFrame):
         """
         Write a single result with the given parameter as a geojson and png.
         Args:
@@ -103,7 +104,7 @@ class BaseScenario(object):
             ax = result.plot(figsize=(10, 10),
                              alpha=0.5,
                              edgecolor='r',
-                             linewidth=3)
+                             linewidth=1)
             try:
                 ctx.add_basemap(ax)
             except Exception as err:
@@ -126,6 +127,7 @@ class BaseScenario(object):
         current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         output_absolute_path = output_path + f"/{self.scenario_name}_{current_time}" + f"/{self._provider.provider_name}_" \
                                                                                        f"{self._provider.profile}"
+        logger.info(f"Writing results to: {output_absolute_path}")
 
         # Make sure output folder exists
         if not os.path.exists(output_path +
@@ -140,8 +142,11 @@ class BaseScenario(object):
             file_path_geojson = output_absolute_path + f"_{cleaned_name}sec.geojson"
             file_path_png = output_absolute_path + f"_{cleaned_name}sec.png"
             png_title = f"Scenario: {self.scenario_name} | Provider: {self._provider.provider_name} | Range: {cleaned_name} seconds\nProfile: {self._provider.profile}"
-            self.write_result(file_path_geojson, file_path_png, png_title,
-                              result)
+            self.write_result(
+                file_path_geojson,
+                file_path_png,
+                result,
+            )
             files.extend([file_path_geojson, file_path_png])
 
             for i in result.index:
@@ -150,8 +155,11 @@ class BaseScenario(object):
                 png_title = f"Scenario: {self.scenario_name} | Provider: {self._provider.provider_name} | Range: {cleaned_name} seconds\nProfile: {self._provider.profile}\n{i}"
                 row = result.loc[[i]]
                 if 'Polygon' in row['geometry'].geom_type.values:
-                    self.write_result(file_path_geojson, file_path_png,
-                                      png_title, row)
+                    self.write_result(
+                        file_path_geojson,
+                        file_path_png,
+                        row,
+                    )
 
         return files
 

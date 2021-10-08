@@ -59,8 +59,8 @@ def main():
                                               fallback="['heidelberg']"))
     bbox = config["DEFAULT"].get(
         "Bbox", fallback="8.667398,49.407718,8.719677,49.412392")
-    ranges = config["DEFAULT"].get("Ranges",
-                                   fallback="[600, 1200, 1800, 3600]")
+    ranges = json.loads(config["DEFAULT"].get(
+        "Ranges", fallback="[600, 1200, 1800, 3600]"))
     tags = json.loads(config["DEFAULT"].get("Tags"))
     threads = int(config["DEFAULT"].get("Threads", fallback="2"))
     range_type = config["DEFAULT"].get("Range_Type", fallback="time")
@@ -122,6 +122,7 @@ def main():
                                                password=password)
         scenario = RecreationScenario(cities=cities,
                                       tags=tags,
+                                      ranges=ranges,
                                       provider=provider,
                                       ohsome_api=ohsome_api,
                                       threads=threads,

@@ -17,8 +17,6 @@ class OpenRouteServiceProvider(BaseProvider):
 
     @BaseProvider.profile.setter
     def profile(self, profile):
-        if profile is None:
-            self._profile = ""
         if "car" in profile:
             self._profile = "driving-car"
         elif "pedestrian" in profile:

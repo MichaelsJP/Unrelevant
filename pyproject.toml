@@ -22,6 +22,9 @@ tqdm = "^4.62.3"
 tqdm-multiprocess = "^0.0.11"
 SQLAlchemy = "^1.4.25"
 psycopg2 = "^2.9.1"
+Rtree = "^0.9.7"
+ujson = "^4.2.0"
+GeoAlchemy2 = "^0.9.4"
 
 [tool.poetry.scripts]
 yact = "yact.yact:main"

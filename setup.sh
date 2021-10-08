@@ -63,8 +63,8 @@ if [[ ! -d "$DIR" ]]; then DIR="$PWD"; fi
 # Initialize main variables                                                    #
 ################################################################################
 SCRIPT_VERSION="0.0.1"
-DOCKER_DATABASE_CONTAINER_NAME="unrelevant"
-DOCKER_ORS_CONTAINER_NAME="ors-app"
+DOCKER_DATABASE_CONTAINER_NAME="unrelevant-postgres"
+DOCKER_ORS_CONTAINER_NAME="unrelevant-ors-app"
 POPULATION_TABLE="wpop"
 ################################################################################
 # Initialize main functions                                                    #
@@ -74,16 +74,22 @@ download_population_dataset() {
   local current_directory=$PWD
   # shellcheck disable=SC2164
   cd "$START_DIRECTORY"
-  local dataset_url="https://data.worldpop.org/GIS/Population/Global_2000_2020/2020/0_Mosaicked/ppp_2020_1km_Aggregated.tif"
-  local dataset_local_path="${START_DIRECTORY}/data/population.tif"
-  if [ -e "${dataset_local_path}" ]; then
+#  local dataset_url="https://cidportal.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_MT_GLOBE_R2019A/GHS_POP_E2015_GLOBE_R2019A_4326_9ss/V1-0/GHS_POP_E2015_GLOBE_R2019A_4326_9ss_V1_0.zip"
+  local dataset_url="https://cidportal.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_MT_GLOBE_R2019A/GHS_POP_E2015_GLOBE_R2019A_4326_9ss/V1-0/GHS_POP_E2015_GLOBE_R2019A_4326_9ss_V1_0.zip"
+  local dataset_zip_local_path="${START_DIRECTORY}/data/population.zip"
+  local dataset_tif_local_path="${START_DIRECTORY}/data/population.tif"
+  if [ -e "${dataset_tif_local_path}" ]; then
     say "Population dataset exists. Skipping download."
-    echo "${dataset_local_path}"
+    echo "${dataset_tif_local_path}"
   else
     say "Download the population dataset. This will take some time."
-    curl --header "Host: data.worldpop.org" --user-agent "Mozilla/5.0 (X11; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0" --header "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" --header "Accept-Language: en-US,en;q=0.5" --header "Upgrade-Insecure-Requests: 1" --header "Sec-Fetch-Dest: document" --header "Sec-Fetch-Mode: navigate" --header "Sec-Fetch-Site: none" --header "Sec-Fetch-User: ?1" "$dataset_url" --output "${dataset_local_path}"
-    say "Successfully downloaded ${dataset_local_path}."
-    echo "${dataset_local_path}"
+    curl --header "Host: jeodpp.jrc.ec.europa.eu" --header "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.99 Safari/537.36" --header "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9" --header "Accept-Language: en-US,en;q=0.9,de-DE;q=0.8,de;q=0.7,en-GB;q=0.6" --header "Connection: keep-alive" "${dataset_url}" -L -o "${dataset_zip_local_path}"
+    say "Successfully downloaded ${dataset_zip_local_path}."
+    say "Extracting ${dataset_zip_local_path}."
+    unzip "${dataset_zip_local_path}" -d "${START_DIRECTORY}/data/temp"
+    say "Copy correct population data to  ${dataset_tif_local_path}."
+    cp "${START_DIRECTORY}"/data/temp/*.tif "${dataset_tif_local_path}"
+    rm -r "${START_DIRECTORY}/data/temp"
   fi
   # shellcheck disable=SC2164
   cd "$current_directory"
@@ -94,15 +100,15 @@ download_germany_osm_pbf_dataset() {
   # shellcheck disable=SC2164
   cd "$START_DIRECTORY"
   local dataset_url="http://download.geofabrik.de/europe/germany-latest.osm.pbf"
-  local dataset_local_path="${START_DIRECTORY}/data/germany.osm.pbf"
-  if [ -e "${dataset_local_path}" ]; then
+  local dataset_zip_local_path="${START_DIRECTORY}/data/germany.osm.pbf"
+  if [ -e "${dataset_zip_local_path}" ]; then
     say "OSM dataset exists. Skipping download."
-    echo "${dataset_local_path}"
+    echo "${dataset_zip_local_path}"
   else
     say "Download the osm dataset. This will take some time."
-    curl --header "Host: download.geofabrik.de" --header "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36" --header "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9" --header "Accept-Language: en-US,en;q=0.9,de-DE;q=0.8,de;q=0.7,en-GB;q=0.6" "$dataset_url" -L -o "${dataset_local_path}"
-    say "Successfully downloaded ${dataset_local_path}."
-    echo "${dataset_local_path}"
+    curl --header "Host: download.geofabrik.de" --header "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36" --header "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9" --header "Accept-Language: en-US,en;q=0.9,de-DE;q=0.8,de;q=0.7,en-GB;q=0.6" "$dataset_url" -L -o "${dataset_zip_local_path}"
+    say "Successfully downloaded ${dataset_zip_local_path}."
+    echo "${dataset_zip_local_path}"
   fi
   # shellcheck disable=SC2164
   cd "$current_directory"
@@ -111,15 +117,15 @@ download_germany_osm_pbf_dataset() {
 download_ohsome_dataset() {
   local dataset_url="https://downloads.ohsome.org/OSHDB/v0.6/europe/germany/baden-wuerttemberg/heidelberg_68900_2020-07-23.oshdb.mv.db"
   local current_directory=$PWD
-  local dataset_local_path="${current_directory}/ohsome.oshdb.mv.db"
-  if [ -e "${dataset_local_path}" ]; then
+  local dataset_zip_local_path="${current_directory}/ohsome.oshdb.mv.db"
+  if [ -e "${dataset_zip_local_path}" ]; then
     say "Ohsome database exists. Skipping download."
-    echo "${dataset_local_path}"
+    echo "${dataset_zip_local_path}"
   else
     say "Download the ohsome database. This will take some time."
-    curl --header "Host: downloads.ohsome.org" --user-agent "Mozilla/5.0 (X11; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0" --header "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" --header "Accept-Language: en-US,en;q=0.5" --header "Upgrade-Insecure-Requests: 1" --header "Sec-Fetch-Dest: document" --header "Sec-Fetch-Mode: navigate" --header "Sec-Fetch-Site: none" --header "Sec-Fetch-User: ?1" "$dataset_url" --output "${dataset_local_path}"
-    say "Successfully downloaded ${dataset_local_path}."
-    echo "${dataset_local_path}"
+    curl --header "Host: downloads.ohsome.org" --user-agent "Mozilla/5.0 (X11; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0" --header "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" --header "Accept-Language: en-US,en;q=0.5" --header "Upgrade-Insecure-Requests: 1" --header "Sec-Fetch-Dest: document" --header "Sec-Fetch-Mode: navigate" --header "Sec-Fetch-Site: none" --header "Sec-Fetch-User: ?1" "$dataset_url" --output "${dataset_zip_local_path}"
+    say "Successfully downloaded ${dataset_zip_local_path}."
+    echo "${dataset_zip_local_path}"
   fi
 }
 
@@ -137,6 +143,7 @@ main() {
   check_program_installed docker-compose
   check_program_installed tar
   check_program_installed python
+  check_program_installed unzip
 
   while builtin getopts "hvrwo:" opt "${@}"; do
     case $opt in
