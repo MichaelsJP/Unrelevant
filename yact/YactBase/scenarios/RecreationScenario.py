@@ -5,6 +5,7 @@ import logging
 import os
 
 import contextily as ctx
+from tqdm import tqdm
 
 from geopandas import GeoDataFrame
 import geopandas as gp
@@ -435,27 +436,49 @@ class RecreationScenario(BaseScenario):
 
         """
         current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        output_absolute_path = output_path + f"/{self.scenario_name}_{current_time}" + f"/{self._provider.provider_name}_" \
-                                                                                       f"{self._provider.profile}"
+        folder_path = output_path + f"/{self.scenario_name}_{current_time}"
+        output_file_name = f"/{self._provider.provider_name}_{self._provider.profile}"
 
         # Make sure output folder exists
-        if not os.path.exists(output_path +
-                              f"/{self.scenario_name}_{current_time}"):
-            os.makedirs(output_path + f"/{self.scenario_name}_{current_time}")
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
 
         files = []
+
         comparison_total = gp.GeoDataFrame()
         comparison_categories = gp.GeoDataFrame()
         comparison_tags = gp.GeoDataFrame()
         comparison_points = gp.GeoDataFrame()
-        for city in self._geometry_results.keys():
+
+        cleaned_range = str(self._ranges).strip('[').strip(']')
+
+        for city in tqdm.tqdm(self._geometry_results.keys(),
+                              desc="Writing city output"):
+            city_folder = folder_path + f"/{city}"
+            # Make sure output folder exists
+            if not os.path.exists(city_folder):
+                os.makedirs(city_folder)
             city_data = self._geometry_results.get(city)['isochrones']
+            results_total = gp.GeoDataFrame.from_features(
+                city_data['results_total'])
+            results_total = results_total.set_crs(crs=4326)
+
+            results_total_file_path_geojson = city_folder + output_file_name + f"_{city}_results_total.geojson"
+            results_total_file_path_png = city_folder + output_file_name + f"_{city}_results_total.png"
+            results_total_png_title = f"Results total {city} | Provider: {self._provider.provider_name} | Range: {cleaned_range} seconds\nProfile: {self._provider.profile}"
+            self.write_result(results_total_file_path_geojson,
+                              results_total_file_path_png,
+                              results_total_png_title, results_total)
+
             comparison_total = comparison_total.append(
                 gp.GeoDataFrame.from_features(city_data['results_total']))
+
             for category in city_data.keys():
                 # Generate city details
                 if category == 'results_total':
                     continue
+
+                # Add to global comparison
                 comparison_categories = comparison_categories.append(
                     gp.GeoDataFrame.from_features(
                         city_data[category]['results_category']))
@@ -466,6 +489,53 @@ class RecreationScenario(BaseScenario):
                     gp.GeoDataFrame.from_features(
                         city_data[category]['results_points']))
 
+                # Add to detailed output
+                results_category = gp.GeoDataFrame.from_features(
+                    city_data[category]['results_category'])
+                results_tags = gp.GeoDataFrame.from_features(
+                    city_data[category]['results_tags'])
+                results_points = gp.GeoDataFrame.from_features(
+                    city_data[category]['results_points'])
+                results_category = results_category.append(results_points)
+
+                # Looks totally shitty when adding the points to the plots!
+                # results_category['range'] = results_category['range'].fillna(0)
+
+                results_category = results_category.set_crs(crs=4326)
+                results_tags = results_tags.set_crs(crs=4326)
+                results_points = results_points.set_crs(crs=4326)
+
+                results_category_file_path_geojson = city_folder + output_file_name + f"_{city}_results_{category}.geojson"
+                results_tags_file_path_geojson = city_folder + output_file_name + f"_{city}_results_{category}_tags.geojson"
+                results_points_file_path_geojson = city_folder + output_file_name + f"_{city}_results_{category}_points.geojson"
+
+                results_category_file_path_png = city_folder + output_file_name + f"_{city}_results_{category}.png"
+                results_tags_file_path_png = city_folder + output_file_name + f"_{city}_results_{category}_tags.png"
+                results_points_file_path_png = city_folder + output_file_name + f"_{city}_results_{category}_points.png"
+
+                results_category_png_title = f"Results: {city} | Category: {category} | Provider: {self._provider.provider_name} | Range: {cleaned_range} seconds\nProfile: {self._provider.profile}"
+                results_tags_png_title = f"Results tags: {city} | Category: {category} | Provider: {self._provider.provider_name} | Range: {cleaned_range} seconds\nProfile: {self._provider.profile}"
+                results_points_png_title = f"Results points: {city} | Category: {category} | Provider: {self._provider.provider_name} | Range: {cleaned_range} seconds\nProfile: {self._provider.profile}"
+
+                self.write_result(results_category_file_path_geojson,
+                                  results_category_file_path_png,
+                                  results_category_png_title, results_category)
+                self.write_result(results_tags_file_path_geojson,
+                                  results_tags_file_path_png,
+                                  results_tags_png_title,
+                                  results_tags,
+                                  plot=False)
+                self.write_result(results_points_file_path_geojson,
+                                  results_points_file_path_png,
+                                  results_points_png_title, results_points)
+
+                files.append(results_category_file_path_geojson)
+                files.append(results_tags_file_path_geojson)
+                files.append(results_points_file_path_geojson)
+                files.append(results_category_file_path_png)
+                files.append(results_tags_file_path_png)
+                files.append(results_points_file_path_png)
+
         comparison_total = comparison_total.set_crs(crs=4326)
         comparison_categories = comparison_categories.set_crs(crs=4326)
         comparison_tags = comparison_tags.set_crs(crs=4326)
@@ -473,15 +543,15 @@ class RecreationScenario(BaseScenario):
 
         cleaned_range = str(self._ranges).strip('[').strip(']')
 
-        comparison_total_file_path_geojson = output_absolute_path + f"_comparison_total.geojson"
-        comparison_categories_file_path_geojson = output_absolute_path + f"_comparison_categories.geojson"
-        comparison_tags_file_path_geojson = output_absolute_path + f"_comparison_tags.geojson"
-        comparison_points_file_path_geojson = output_absolute_path + f"_comparison_points.geojson"
+        comparison_total_file_path_geojson = folder_path + output_file_name + f"_comparison_total.geojson"
+        comparison_categories_file_path_geojson = folder_path + output_file_name + f"_comparison_categories.geojson"
+        comparison_tags_file_path_geojson = folder_path + output_file_name + f"_comparison_tags.geojson"
+        comparison_points_file_path_geojson = folder_path + output_file_name + f"_comparison_points.geojson"
 
-        comparison_total_file_path_png = output_absolute_path + f"_comparison_total.png"
-        comparison_categories_file_path_png = output_absolute_path + f"_comparison_categories.png"
-        comparison_tags_file_path_png = output_absolute_path + f"_comparison_tags.png"
-        comparison_points_file_path_png = output_absolute_path + f"_comparison_points.png"
+        comparison_total_file_path_png = folder_path + output_file_name + f"_comparison_total.png"
+        comparison_categories_file_path_png = folder_path + output_file_name + f"_comparison_categories.png"
+        comparison_tags_file_path_png = folder_path + output_file_name + f"_comparison_tags.png"
+        comparison_points_file_path_png = folder_path + output_file_name + f"_comparison_points.png"
 
         comparison_total_png_title = f"Scenario: {self.scenario_name} - Comparison Total | Provider: {self._provider.provider_name} | Range: {cleaned_range} seconds\nProfile: {self._provider.profile}"
         comparison_categories_png_title = f"Scenario: {self.scenario_name} - Comparison Categories | Provider: {self._provider.provider_name} | Range: {cleaned_range} seconds\nProfile: {self._provider.profile}"
@@ -490,17 +560,24 @@ class RecreationScenario(BaseScenario):
 
         self.write_result(comparison_total_file_path_geojson,
                           comparison_total_file_path_png,
-                          comparison_total_png_title, comparison_total)
+                          comparison_total_png_title,
+                          comparison_total,
+                          plot=False)
         self.write_result(comparison_categories_file_path_geojson,
                           comparison_categories_file_path_png,
                           comparison_categories_png_title,
-                          comparison_categories)
+                          comparison_categories,
+                          plot=False)
         self.write_result(comparison_tags_file_path_geojson,
                           comparison_tags_file_path_png,
-                          comparison_tags_png_title, comparison_tags)
+                          comparison_tags_png_title,
+                          comparison_tags,
+                          plot=False)
         self.write_result(comparison_points_file_path_geojson,
                           comparison_points_file_path_png,
-                          comparison_points_png_title, comparison_points)
+                          comparison_points_png_title,
+                          comparison_points,
+                          plot=False)
         files.extend([
             [
                 comparison_total_file_path_geojson,
