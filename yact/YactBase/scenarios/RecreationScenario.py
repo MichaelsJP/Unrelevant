@@ -5,7 +5,11 @@ import logging
 import os
 
 import contextily as ctx
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy
 from tqdm import tqdm
+import matplotlib.ticker as mtick
 
 from geopandas import GeoDataFrame
 import geopandas as gp
@@ -55,7 +59,12 @@ class PopulationFetcher(Base):
         finally:
             self._connection.close()
             self._connection = None
-            return result[0][0] if result else 0
+            all_values = 0
+            for pair in result:
+                value = pair[0]
+                if value:
+                    all_values += value
+            return all_values
 
     def get_population_data(self, wkt_geom: str):
         query = f"""
@@ -87,7 +96,7 @@ class RecreationScenario(BaseScenario):
                  threads: int = 1,
                  population_fetcher: PopulationFetcher = None):
         self._ranges: [] = ranges
-        self._cities: [] = cities
+        self._cities: dict = cities
         self._tags: dict = tags
         self._threads: int = threads
         self._population_fetcher = population_fetcher
@@ -102,29 +111,74 @@ class RecreationScenario(BaseScenario):
         logger.debug(f"Used ranges: {self._ranges}")
         logger.debug(f"Used profile: {self._provider.profile}")
 
-    def _get_city_bounds(self, bbox) -> dict:
+    def _get_city_boundary_task(self, bbox, time, query_filter, properties,
+                                city_name, _, global_tqdm) -> dict:
+        try:
+            city_data = self._ohsome_client.elements.geometry.post(
+                bboxes=bbox,
+                time=time,
+                filter=query_filter,
+                properties=properties).data
+            city_data["city"] = city_name
+        except Exception as err:
+            raise err
+        global_tqdm.update()
+        return city_data
+
+    def _get_city_bounds(self) -> dict:
         city_data = {}
-        logger.info("Getting city boundaries")
-        for city_name in self._cities:
-            logger.info(f"Getting city boundary for: {city_name}")
-            try:
-                response = self._ohsome_client.elements.geometry.post(
-                    bboxes=bbox,
-                    time=self._ohsome_endpoint_temporal_extent,
-                    filter=f"boundary=administrative and name={city_name}",
-                    # filter=f"type:relation and boundary=administrative and name=heidelberg",
-                    properties="tags")
-            except Exception as err:
-                raise OhsomeQueryError(err.__str__())
-            if response.data and len(response.data['features']):
+        logger.info("Getting city boundaries (This may take some while)")
+        task = [[
+            city_boundary, self._ohsome_endpoint_temporal_extent,
+            f"boundary=administrative and name=\"{city_name}\"", "tags",
+            city_name
+        ] for city_name, city_boundary in self._cities.items()]
+        initial_tasks = [(self._get_city_boundary_task, (
+            task[i][0],
+            task[i][1],
+            task[i][2],
+            task[i][3],
+            task[i][4],
+        )) for i in range(len(task))]
+        pool = TqdmMultiProcessPool(5)
+        with tqdm.tqdm(total=len(initial_tasks),
+                       dynamic_ncols=True,
+                       unit="Boundaries") as global_progress:
+            global_progress.set_description("Getting city boundaries")
+            processed_boundaries: dict = pool.map(global_progress,
+                                                  initial_tasks,
+                                                  self._on_error,
+                                                  self._done_callback)
+        for city_boundary in processed_boundaries:
+            city_name = city_boundary['city']
+            logger.info(f"Processing city boundary for: {city_name}")
+            if city_boundary and len(city_boundary['features']):
                 city_data[city_name] = {}
-                city_data[city_name]['boundary'] = response.data
+                city_data[city_name]['boundary'] = city_boundary
             else:
                 logger.info(f"Couldn't find city data for: {city_name}")
         return city_data
 
-    def _get_city_pois_by_bpolys(self, bpolys: str) -> dict:
+    def _get_city_pois_by_bpolys_task(self, bpolys, time, query_filter,
+                                      properties, category, _, global_tqdm):
         data = {}
+        try:
+            data: dict = self._ohsome_client.elements.centroid.post(
+                bpolys=bpolys,
+                time=time,
+                filter=query_filter,
+                properties=properties).data
+            data["filterQuery"] = query_filter
+            data["category_name"] = category
+        except Exception as err:
+            raise err
+        global_tqdm.update()
+        return data
+
+    def _get_city_pois_by_bpolys(self, bpolys: str, city: str) -> dict:
+        # TODO Multithread this
+        data = {}
+        task = []
         for category in self._tags.keys():
             filter_query = ""
             for key, value in self._tags.get(category).items():
@@ -133,22 +187,43 @@ class RecreationScenario(BaseScenario):
                 else:
                     filter_query = f"{key}={value}"
             if len(filter_query):
-                response = self._ohsome_client.elements.centroid.post(
-                    bpolys=bpolys,
-                    time=self._ohsome_endpoint_temporal_extent,
-                    filter=filter_query,
-                    properties="tags")
-                if 'features' in response.data.keys():
-                    data[category] = response.data
-                    data[category]['filterQuery'] = filter_query
-                    logger.info(
-                        f"{len(data[category]['features'])} POIs found for category {category}"
-                    )
-                else:
-                    logger.debug(f"No POIs with category {category} found.")
+                task.append([
+                    bpolys,
+                    self._ohsome_endpoint_temporal_extent,
+                    filter_query,
+                    "tags",
+                    category,
+                ])
             else:
                 logger.debug(
                     f"No Filter Query constructed for category {category}.")
+
+        initial_tasks = [(self._get_city_pois_by_bpolys_task, (
+            task[i][0],
+            task[i][1],
+            task[i][2],
+            task[i][3],
+            task[i][4],
+        )) for i in range(len(task))]
+        pool = TqdmMultiProcessPool(4)
+        with tqdm.tqdm(total=len(initial_tasks),
+                       dynamic_ncols=True,
+                       unit="POIs") as global_progress:
+            global_progress.set_description(
+                f"Getting POIs for {city} per category")
+            processed_pois: dict = pool.map(global_progress, initial_tasks,
+                                            self._on_error,
+                                            self._done_callback)
+        processed_poi: dict
+        for processed_poi in processed_pois:
+            category_name = processed_poi.pop('category_name')
+            if not 'features' in processed_poi.keys():
+                logger.info(f"No POIs with category {category_name} found.")
+                continue
+            data[category_name] = processed_poi
+            logger.info(
+                f"{len(data[category_name]['features'])} POIs found for category {category_name}"
+            )
         return data
 
     @staticmethod
@@ -274,12 +349,15 @@ class RecreationScenario(BaseScenario):
                     geometry_key)
                 population = self._population_fetcher.get_population_data(
                     geometry.to_wkt())
-                if population is not None:
-                    gdf_tags_dissolved.at[geometry_key,
-                                          'population'] = population
-                    gdf_tags_dissolved.at[
-                        geometry_key, 'total_population_percentage'] = (
-                            population / total_population) * 100
+                try:
+                    if population is not None:
+                        gdf_tags_dissolved.at[geometry_key,
+                                              'population'] = population
+                        gdf_tags_dissolved.at[
+                            geometry_key, 'total_population_percentage'] = (
+                                population / total_population) * 100
+                except Exception as err:
+                    print()
             for geometry_key in gdf_category.geometry.keys():
                 geometry: MultiPolygon = gdf_category.geometry.get(
                     geometry_key)
@@ -307,21 +385,29 @@ class RecreationScenario(BaseScenario):
             gdf_category = gdf_category.set_crs(epsg=4326)
         return gdf_category, gdf_tags_dissolved, gdf_points
 
-    def _get_cities_data(self, bbox):
+    def _get_cities_data(self):
         # TODO redo after development
-        cities_data = self._get_city_bounds(bbox)
-        # with open(
-        #         "/home/jules/workspace/University/Unrelevant/data/test_city_data_heidelberg_karlsruhe.json",
-        #         "r") as f:
-        #     cities_data = json.load(f)
+        cities_data = self._get_city_bounds()
+        logger.debug("Writing city boundaries to temporary file.")
+        with open(
+                "/home/jules/workspace/University/Unrelevant/data/city_bounds.json",
+                "w") as f:
+            json.dump(cities_data, f)
+        with open(
+                "/home/jules/workspace/University/Unrelevant/data/city_bounds.json",
+                "r") as f:
+            cities_data = json.load(f)
         # TODO redo after development
 
         for city in cities_data:
-            logger.info(f"Getting POIs for {city}")
-
             # TODO redo after development
-            pois = self._get_city_pois_by_bpolys(
-                bpolys=json.dumps(cities_data[city]['boundary']))
+            if 'pois' not in cities_data[city]:
+                logger.info(f"Getting POIs for {city}")
+                pois = self._get_city_pois_by_bpolys(bpolys=json.dumps(
+                    cities_data[city]['boundary']),
+                                                     city=city)
+            else:
+                pois = cities_data[city]['pois']
             if not len(pois):
                 logger.info(
                     f"No POIs found for city: {city}. Excluding it from the results."
@@ -334,11 +420,22 @@ class RecreationScenario(BaseScenario):
             if not "isochrones" in cities_data[city]:
                 cities_data[city]['isochrones'] = {}
             city_boundary = cities_data[city]['boundary']
-            gdf_city = GeoDataFrame()
-            gdf_city['count_pois'] = 0
 
             boundary = GeoDataFrame.from_features(city_boundary,
                                                   crs="EPSG:4326")
+            boundary = boundary.dissolve()
+
+            with open(
+                    "/home/jules/workspace/University/Unrelevant/data/city_bounds.json",
+                    "w") as f:
+                json.dump(cities_data, f)
+            with open(
+                    "/home/jules/workspace/University/Unrelevant/data/city_bounds.json",
+                    "r") as f:
+                cities_data = json.load(f)
+            gdf_city = GeoDataFrame()
+            gdf_city['count_pois'] = 0
+
             total_population = self._population_fetcher.get_population_data(
                 boundary.geometry.get(0).to_wkt())
 
@@ -435,6 +532,10 @@ class RecreationScenario(BaseScenario):
         @return: Returns the paths from the written data.
 
         """
+        if not self._geometry_results or not len(self._geometry_results):
+            logger.warning(
+                "Results are empty. Check your city input and the bounding box."
+            )
         current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         folder_path = output_path + f"/{self.scenario_name}_{current_time}"
         output_file_name = f"/{self._provider.provider_name}_{self._provider.profile}"
@@ -454,6 +555,8 @@ class RecreationScenario(BaseScenario):
 
         for city in tqdm.tqdm(self._geometry_results.keys(),
                               desc="Writing city output"):
+            # if city not in ["Dresden"]:
+            #     continue
             city_folder = folder_path + f"/{city}"
             # Make sure output folder exists
             if not os.path.exists(city_folder):
@@ -466,9 +569,9 @@ class RecreationScenario(BaseScenario):
             results_total_file_path_geojson = city_folder + output_file_name + f"_{city}_results_total.geojson"
             results_total_file_path_png = city_folder + output_file_name + f"_{city}_results_total.png"
             results_total_png_title = f"Results total {city} | Provider: {self._provider.provider_name} | Range: {cleaned_range} seconds\nProfile: {self._provider.profile}"
-            self.write_result(results_total_file_path_geojson,
-                              results_total_file_path_png,
-                              results_total_png_title, results_total)
+            self.write_geo_result(results_total_file_path_geojson,
+                                  results_total_file_path_png,
+                                  results_total_png_title, results_total)
 
             comparison_total = comparison_total.append(
                 gp.GeoDataFrame.from_features(city_data['results_total']))
@@ -517,17 +620,18 @@ class RecreationScenario(BaseScenario):
                 results_tags_png_title = f"Results tags: {city} | Category: {category} | Provider: {self._provider.provider_name} | Range: {cleaned_range} seconds\nProfile: {self._provider.profile}"
                 results_points_png_title = f"Results points: {city} | Category: {category} | Provider: {self._provider.provider_name} | Range: {cleaned_range} seconds\nProfile: {self._provider.profile}"
 
-                self.write_result(results_category_file_path_geojson,
-                                  results_category_file_path_png,
-                                  results_category_png_title, results_category)
-                self.write_result(results_tags_file_path_geojson,
-                                  results_tags_file_path_png,
-                                  results_tags_png_title,
-                                  results_tags,
-                                  plot=False)
-                self.write_result(results_points_file_path_geojson,
-                                  results_points_file_path_png,
-                                  results_points_png_title, results_points)
+                self.write_geo_result(results_category_file_path_geojson,
+                                      results_category_file_path_png,
+                                      results_category_png_title,
+                                      results_category)
+                self.write_geo_result(results_tags_file_path_geojson,
+                                      results_tags_file_path_png,
+                                      results_tags_png_title,
+                                      results_tags,
+                                      plot=False)
+                self.write_geo_result(results_points_file_path_geojson,
+                                      results_points_file_path_png,
+                                      results_points_png_title, results_points)
 
                 files.append(results_category_file_path_geojson)
                 files.append(results_tags_file_path_geojson)
@@ -558,26 +662,117 @@ class RecreationScenario(BaseScenario):
         comparison_tags_png_title = f"Scenario: {self.scenario_name} - Comparison Tags | Provider: {self._provider.provider_name} | Range: {cleaned_range} seconds\nProfile: {self._provider.profile}"
         comparison_points_png_title = f"Scenario: {self.scenario_name} - Comparison Points | Provider: {self._provider.provider_name} | Range: {cleaned_range} seconds\nProfile: {self._provider.profile}"
 
-        self.write_result(comparison_total_file_path_geojson,
-                          comparison_total_file_path_png,
-                          comparison_total_png_title,
-                          comparison_total,
-                          plot=False)
-        self.write_result(comparison_categories_file_path_geojson,
-                          comparison_categories_file_path_png,
-                          comparison_categories_png_title,
-                          comparison_categories,
-                          plot=False)
-        self.write_result(comparison_tags_file_path_geojson,
-                          comparison_tags_file_path_png,
-                          comparison_tags_png_title,
-                          comparison_tags,
-                          plot=False)
-        self.write_result(comparison_points_file_path_geojson,
-                          comparison_points_file_path_png,
-                          comparison_points_png_title,
-                          comparison_points,
-                          plot=False)
+        self.write_geo_result(comparison_total_file_path_geojson,
+                              comparison_total_file_path_png,
+                              comparison_total_png_title,
+                              comparison_total,
+                              plot=False)
+        self.write_geo_result(comparison_categories_file_path_geojson,
+                              comparison_categories_file_path_png,
+                              comparison_categories_png_title,
+                              comparison_categories,
+                              plot=False)
+        self.write_geo_result(comparison_tags_file_path_geojson,
+                              comparison_tags_file_path_png,
+                              comparison_tags_png_title,
+                              comparison_tags,
+                              plot=False)
+        self.write_geo_result(comparison_points_file_path_geojson,
+                              comparison_points_file_path_png,
+                              comparison_points_png_title,
+                              comparison_points,
+                              plot=False)
+
+        # print ordered results for the top 3
+        grouped = comparison_categories.groupby(['category', "range"])
+        matplotlib.style.use('seaborn')
+        top_x_cities = 19
+
+        SMALL_SIZE = 8
+        MEDIUM_SIZE = 10
+        BIGGER_SIZE = 12
+
+        plt.rc('font', size=SMALL_SIZE)  # controls default text sizes
+        plt.rc('axes', titlesize=SMALL_SIZE)  # fontsize of the axes title
+        plt.rc('axes', labelsize=MEDIUM_SIZE)  # fontsize of the x and y labels
+        plt.rc('xtick', labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
+        plt.rc('ytick', labelsize=SMALL_SIZE)  # fontsize of the tick labels
+        plt.rc('legend', fontsize=SMALL_SIZE)  # legend fontsize
+        plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
+        for group in grouped:
+            fig, axes = plt.subplots(nrows=3,
+                                     ncols=1,
+                                     sharex=False,
+                                     sharey=False)
+            title = group[0]
+            dataframe = group[1]
+
+            # Plot the population per category comparison
+            population = dataframe.sort_values(by=['population'],
+                                               ascending=True)
+            population = population.tail(top_x_cities)
+            ax1 = population.plot.barh(legend=False,
+                                       ax=axes[0],
+                                       x="city",
+                                       y=["population"],
+                                       rot=0)
+            ax1.xaxis.set_major_formatter(mtick.EngFormatter())
+            ax1.set_ylabel("")
+            ax1.set_xlabel("Total population per class")
+
+            # # Plot the population per poi ratio
+            population_poi_ratio = dataframe.sort_values(
+                by=['population_poi_ratio'], ascending=True)
+            population_poi_ratio = population_poi_ratio.tail(top_x_cities)
+            ax2 = population_poi_ratio.plot.barh(legend=False,
+                                                 ax=axes[1],
+                                                 x="city",
+                                                 y=["population_poi_ratio"],
+                                                 rot=0)
+            ax2.xaxis.set_major_formatter(mtick.EngFormatter())
+            ax2.set_ylabel("")
+            ax2.set_xlabel("Total population per POI")
+
+            # # Plot the category population ratio for the total population
+            total_population_percentage = dataframe.sort_values(
+                by=['total_population_percentage'], ascending=True)
+            total_population_percentage = total_population_percentage.tail(
+                top_x_cities)
+            ax3 = total_population_percentage.plot.barh(
+                legend=False,
+                ax=axes[2],
+                x="city",
+                y=["total_population_percentage"],
+                rot=0)
+            ax3.xaxis.set_major_formatter(mtick.PercentFormatter())
+            ax3.set_ylabel("")
+            ax3.set_xlabel("Ratio of the class vs total population")
+
+            fig.suptitle(
+                f'Class: {title[0]} | Range: {title[1]} | All cities ranked',
+                fontsize=16)
+            plt.tight_layout()
+            plt.savefig(folder_path + f"/{title}_comparison_test.png")
+            plt.close()
+
+        # Plot the total population comparison
+        comparison_categories.drop_duplicates(subset=['city'], inplace=True)
+        total_population = comparison_categories.sort_values(
+            by=['total_population'], ascending=True)
+        ax = total_population.plot.barh(legend=False,
+                                        x="city",
+                                        y=["total_population"],
+                                        rot=0)
+        ax.xaxis.set_major_formatter(mtick.EngFormatter())
+        ax.set_ylabel("")
+        ax.set_xlabel("Total population")
+
+        plt.title(f"All populations ranked for comparison.")
+        plt.tight_layout()
+        plt.savefig(folder_path + f"/total_population_test.png")
+        plt.close()
+
         files.extend([
             [
                 comparison_total_file_path_geojson,
@@ -595,16 +790,16 @@ class RecreationScenario(BaseScenario):
         ])
         return files
 
-    def process(self, bbox):
-        cities_data = self._get_cities_data(bbox)
+    def process(self):
+        cities_data = self._get_cities_data()
         logger.debug("Writing cities data to temporary file.")
         with open(
-                "/home/jules/workspace/University/Unrelevant/data/test_city_data_heidelberg_karlsruhe.json",
+                "/home/jules/workspace/University/Unrelevant/data/city_bounds.json",
                 "w") as f:
             json.dump(cities_data, f)
         # TODO remove after development
         with open(
-                "/home/jules/workspace/University/Unrelevant/data/test_city_data_heidelberg_karlsruhe.json",
+                "/home/jules/workspace/University/Unrelevant/data/city_bounds.json",
                 "r") as f:
             cities_data = json.load(f)
         self._geometry_results = cities_data

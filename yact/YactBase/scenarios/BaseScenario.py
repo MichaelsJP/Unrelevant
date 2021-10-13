@@ -53,7 +53,7 @@ class BaseScenario(object):
     def scenario_name(self):
         return self._name
 
-    def process(self, bbox):
+    def process(self):
         pass
 
     def _get_isochrones(self, features: [], ranges: []):
@@ -86,8 +86,60 @@ class BaseScenario(object):
         return data
 
     @staticmethod
-    def write_result(full_path_geojson, full_path_png, png_title,
-                     result: GeoDataFrame):
+    def write_scala_result(full_path_png, png_title, result: GeoDataFrame):
+        """
+        Write a single result with the given parameter as a geojson and png.
+        Args:
+            full_path_geojson: Fully qualified path to the geojson file.
+            full_path_png: Fully qualified path to the png file.
+            png_title: Title for the plot.
+            result: Result object. Should be a GeodataFrame or Series.
+
+        """
+        if result.__class__ == GeoDataFrame:
+            result = result.to_crs(epsg=3857)
+            if result.columns.__contains__(
+                    'city') and result.columns.__contains__('city'):
+                result = result.sort_values('range', ascending=False)
+                ax = result.plot(column="range",
+                                 figsize=(10, 10),
+                                 alpha=0.6,
+                                 edgecolor='b',
+                                 linewidth=0.7,
+                                 legend=True,
+                                 categorical=True,
+                                 legend_kwds={'title': "Ranges(s)"})
+            if result.columns.__contains__('range'):
+                result = result.sort_values('range', ascending=False)
+                ax = result.plot(column="range",
+                                 figsize=(10, 10),
+                                 alpha=0.6,
+                                 edgecolor='b',
+                                 linewidth=0.7,
+                                 legend=True,
+                                 categorical=True,
+                                 legend_kwds={'title': "Ranges(s)"})
+            else:
+                ax = result.plot(figsize=(10, 10),
+                                 alpha=0.6,
+                                 edgecolor='b',
+                                 linewidth=0.7)
+            try:
+                ctx.add_basemap(ax)
+            except Exception as err:
+                logger.warning(
+                    f"Contextily had an error. This happens often as it's highly unstable. Error: {err}"
+                )
+            plt.title(png_title)
+            plt.savefig(full_path_png)
+            plt.close()
+
+    @staticmethod
+    def write_geo_result(full_path_geojson,
+                         full_path_png,
+                         png_title,
+                         result: GeoDataFrame,
+                         plot: bool = True):
         """
         Write a single result with the given parameter as a geojson and png.
         Args:
@@ -100,20 +152,32 @@ class BaseScenario(object):
         if result.__class__ == GeoDataFrame:
             with open(full_path_geojson, 'w') as f:
                 json.dump(json.loads(result.to_json()), f)
-            result = result.to_crs(epsg=3857)
-            ax = result.plot(figsize=(10, 10),
-                             alpha=0.5,
-                             edgecolor='r',
-                             linewidth=1)
-            try:
-                ctx.add_basemap(ax)
-            except Exception as err:
-                logger.warning(
-                    f"Contextily had an error. This happens often as it's highly unstable. Error: {err}"
-                )
-            plt.title(png_title)
-            plt.savefig(full_path_png)
-            plt.close()
+            if plot:
+                result = result.to_crs(epsg=3857)
+                if result.columns.__contains__('range'):
+                    result = result.sort_values('range', ascending=False)
+                    ax = result.plot(column="range",
+                                     figsize=(10, 10),
+                                     alpha=0.6,
+                                     edgecolor='b',
+                                     linewidth=0.7,
+                                     legend=True,
+                                     categorical=True,
+                                     legend_kwds={'title': "Ranges(s)"})
+                else:
+                    ax = result.plot(figsize=(10, 10),
+                                     alpha=0.6,
+                                     edgecolor='b',
+                                     linewidth=0.7)
+                try:
+                    ctx.add_basemap(ax)
+                except Exception as err:
+                    logger.warning(
+                        f"Contextily had an error. This happens often as it's highly unstable. Error: {err}"
+                    )
+                plt.title(png_title)
+                plt.savefig(full_path_png)
+                plt.close()
 
     def write_results(self, output_path: str) -> []:
         """
@@ -142,11 +206,8 @@ class BaseScenario(object):
             file_path_geojson = output_absolute_path + f"_{cleaned_name}sec.geojson"
             file_path_png = output_absolute_path + f"_{cleaned_name}sec.png"
             png_title = f"Scenario: {self.scenario_name} | Provider: {self._provider.provider_name} | Range: {cleaned_name} seconds\nProfile: {self._provider.profile}"
-            self.write_result(
-                file_path_geojson,
-                file_path_png,
-                result,
-            )
+            self.write_geo_result(file_path_geojson, file_path_png, png_title,
+                                  result)
             files.extend([file_path_geojson, file_path_png])
 
             for i in result.index:
@@ -155,11 +216,8 @@ class BaseScenario(object):
                 png_title = f"Scenario: {self.scenario_name} | Provider: {self._provider.provider_name} | Range: {cleaned_name} seconds\nProfile: {self._provider.profile}\n{i}"
                 row = result.loc[[i]]
                 if 'Polygon' in row['geometry'].geom_type.values:
-                    self.write_result(
-                        file_path_geojson,
-                        file_path_png,
-                        row,
-                    )
+                    self.write_geo_result(file_path_geojson, file_path_png,
+                                          png_title, row)
 
         return files
 

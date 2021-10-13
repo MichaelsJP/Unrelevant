@@ -10,7 +10,7 @@ class OpenRouteServiceProvider(BaseProvider):
     def __init__(self, api_key: str, profile: str, base_url: str = None):
         super().__init__(name="ors", api_key=api_key)
         if base_url:
-            self._api = Client(base_url=base_url, key=self._api_key)
+            self._api = Client(base_url=base_url)
         else:
             self._api = Client(key=self._api_key)
         self.profile = profile

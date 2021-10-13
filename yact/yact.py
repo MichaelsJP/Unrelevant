@@ -55,8 +55,7 @@ def main():
     provider = config["DEFAULT"].get("Provider")
     scenario = config["DEFAULT"].get("Scenario", fallback="recreation")
     profile = config["DEFAULT"].get("Profile", fallback="car")
-    cities = json.loads(config["DEFAULT"].get("Cities",
-                                              fallback="['heidelberg']"))
+    cities = json.loads(config["DEFAULT"].get("Cities"))
     bbox = config["DEFAULT"].get(
         "Bbox", fallback="8.667398,49.407718,8.719677,49.412392")
     ranges = json.loads(config["DEFAULT"].get(
@@ -109,12 +108,7 @@ def main():
         raise ProviderNotImplementedError(str(provider))
 
     # Get scenario settings
-    if str(scenario).lower() == 'vaccination':
-        scenario = VaccinationScenario(provider=provider,
-                                       ranges=ranges,
-                                       range_type=range_type,
-                                       ohsome_api=ohsome_api)
-    elif str(scenario).lower() == 'recreation':
+    if str(scenario).lower() == 'recreation':
         population_fetcher = PopulationFetcher(url=database_url,
                                                port=port,
                                                db=database,
@@ -136,16 +130,14 @@ def main():
     logger.info(f"# Provider: {provider.provider_name}")
     logger.info(f"# Scenario: {scenario.scenario_name}")
     logger.info(f"# Profile: {profile}")
-    logger.info(f"# Bbox: {bbox}")
+    logger.info(f"# Cities: {cities}")
     logger.info(f"# Ranges: {ranges}")
     logger.info(f"# Range Type: {range_type}")
     logger.info(f"# Verbosity: {verbosity}")
     logger.info(f"# Output Folder: {os.path.abspath(output_folder)}")
     logger.info("#######Started processing#######")
 
-    output_files = process(scenario=scenario,
-                           output_folder=output_folder,
-                           bbox=bbox)
+    output_files = process(scenario=scenario, output_folder=output_folder)
 
     finish = datetime.now()
     logger.info("#######Finisched processing#######")
@@ -156,9 +148,9 @@ def main():
     logger.info("#######Finisched processing#######")
 
 
-def process(scenario: BaseScenario, output_folder: str,
-            bbox: str) -> [str]:  # pragma: no cover
-    scenario.process(bbox)
+def process(scenario: BaseScenario,
+            output_folder: str) -> [str]:  # pragma: no cover
+    scenario.process()
     files = scenario.write_results(output_path=output_folder, )
     return files
 
