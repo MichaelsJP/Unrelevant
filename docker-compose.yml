@@ -39,10 +39,10 @@ services:
       - ./ors/logs/ors:/var/log/ors:rw
       - ./ors/logs/tomcat:/usr/local/tomcat/logs:rw
       - ./data/config:/ors-conf:ro
-      - ./data/karlsruhe-regbez-latest.osm.pbf:/ors-core/data/osm_file.pbf:ro
+      - ./data/germany.osm.pbf:/ors-core/data/osm_file.pbf:ro
     environment:
       - BUILD_GRAPHS=False  # Forces the container to rebuild the graphs, e.g. when PBF is changed
-      - "JAVA_OPTS=-Djava.awt.headless=true -server -XX:TargetSurvivorRatio=75 -XX:SurvivorRatio=64 -XX:MaxTenuringThreshold=3 -XX:+UseG1GC -XX:+ScavengeBeforeFullGC -XX:ParallelGCThreads=4 -Xms1g -Xmx12g"
+      - "JAVA_OPTS=-Djava.awt.headless=true -server -XX:TargetSurvivorRatio=75 -XX:SurvivorRatio=64 -XX:MaxTenuringThreshold=3 -XX:+UseG1GC -XX:+ScavengeBeforeFullGC -XX:ParallelGCThreads=4 -Xms20g -Xmx20g"
       - "CATALINA_OPTS=-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9001 -Dcom.sun.management.jmxremote.rmi.port=9001 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=localhost"
   ohsome-api:
     image: julianpsotta/ohsome-api:1.3.2
