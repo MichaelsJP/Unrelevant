@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Psotta"
+  given-names: "Julian"
+- family-names: "Größchen"
+  given-names: "Leonie"
+- family-names: "Bosse"
+  given-names: "Sottmann"
+title: "Unrelevant - Calculate isochronal accessibility of categorized OSM tags by disatnce and time."
+version: 1.0.0
+date-released: 2021-10-19
+url: "https://github.com/MichaelsJP/Unrelevant"
