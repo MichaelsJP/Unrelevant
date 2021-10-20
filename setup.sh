@@ -35,15 +35,13 @@ USAGE:
 
 OPTIONS (setup the project):
   -r <REFRESH_DOCKER>        Refresh the docker setup if it exists.
-  -o <OUT_DIRECTORY>         Provide an output directory.
-  -w <OVERWRITE_OUTPUT>      Provide to overwrite the output directory it exists.
   -p <POPUPLATION_DATASET    Provide the path to your population data set in tif format.
   -h                         Print help
   -v                         Print the script version
 
 EXAMPLES:
 # Remote configs with ors tag checkout
-./setup.sh -o output -p ./population.tif
+./setup.sh -p ./population.tif
 
 HERE
 }
@@ -100,23 +98,12 @@ main() {
     r)
       REFRESH_DOCKER=true
       ;;
-    o)
-      OUT_DIRECTORY=$OPTARG
-      if ! [[ -d "$OUT_DIRECTORY" ]]; then
-        err "You must provide an existing output folder."
-      fi
-      CheckWriteAccess "$OUT_DIRECTORY"
-      OUT_DIRECTORY=$(realpath "$OUT_DIRECTORY")
-      ;;
     p)
       POPULATION_DATASET_PATH=$OPTARG
       if ! [[ -f "$POPULATION_DATASET_PATH" ]]; then
         err "You must provide an existing  population data set."
       fi
       POPULATION_DATASET_PATH=$(realpath "$POPULATION_DATASET_PATH")
-      ;;
-    w)
-      OVERWRITE_OUTPUT=true
       ;;
     \?)
       err "Invalid option: -$OPTARG" >&2
@@ -134,12 +121,7 @@ main() {
   # Initialize helper variables
   # Check mandatory
   check_mandatory_argument "POPULATION_DATASET" "$POPULATION_DATASET_PATH"
-  check_mandatory_argument "OUT_DIRECTORY" "$OUT_DIRECTORY"
-  check_mandatory_argument "OVERWRITE_OUTPUT" "$OVERWRITE_OUTPUT" false
   check_mandatory_argument "REFRESH_DOCKER" "$REFRESH_DOCKER" false
-
-  # Create output folder
-  OUT_DIRECTORY=$(create_folder "$OUT_DIRECTORY" "$OVERWRITE_OUTPUT")
 
   # Refresh the docker setup
   if [ "$REFRESH_DOCKER" == "true" ] || [ "$REFRESH_DOCKER" == "True" ] || [ "$REFRESH_DOCKER" == "TRUE" ]; then
