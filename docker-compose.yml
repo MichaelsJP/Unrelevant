@@ -2,6 +2,7 @@ version: '3.0'
 
 volumes:
     unrelevant:
+    ors_graphs:
 
 networks:
     unrelevant:
@@ -9,7 +10,7 @@ networks:
 services:
   postgres:
     image: kartoza/postgis:13
-    container_name: unrelevant
+    container_name: unrelevant-postgres
     env_file:
       - ./example.env
     volumes:
@@ -26,9 +27,38 @@ services:
       test: "exit 0"
     networks:
       - unrelevant
+  ors-app:
+    container_name: unrelevant-ors-app
+    ports:
+      - 8081:8080
+    image: openrouteservice/openrouteservice:latest
+    user: "0:0"
+    volumes:
+      - ors_graphs:/ors-core/data/graphs
+      - ./ors/elevation_cache:/ors-core/data/elevation_cache:rw
+      - ./ors/logs/ors:/var/log/ors:rw
+      - ./ors/logs/tomcat:/usr/local/tomcat/logs:rw
+      - ./data/config:/ors-conf:ro
+      - ./data/germany.osm.pbf:/ors-core/data/osm_file.pbf:ro
+    environment:
+      - BUILD_GRAPHS=False  # Forces the container to rebuild the graphs, e.g. when PBF is changed
+      - "JAVA_OPTS=-Djava.awt.headless=true -server -XX:TargetSurvivorRatio=75 -XX:SurvivorRatio=64 -XX:MaxTenuringThreshold=3 -XX:+UseG1GC -XX:+ScavengeBeforeFullGC -XX:ParallelGCThreads=4 -Xms20g -Xmx20g"
+      - "CATALINA_OPTS=-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9001 -Dcom.sun.management.jmxremote.rmi.port=9001 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=localhost"
+  ohsome-api:
+    image: julianpsotta/ohsome-api:1.3.2
+    container_name: unrelevant-ohsome-api
+#    environment:
+#      DATA_FILE: "ohsome.oshdb.mv.db"
+    volumes:
+      - ./data:/opt/data
+    ports:
+      - 8080:8080
+    restart: always
+    networks:
+      - unrelevant
   pgadmin:
     image: dpage/pgadmin4
-    container_name: pgadmin4
+    container_name: unrelevant-pgadmin4
     depends_on:
         - postgres
     ports:

@@ -7,7 +7,7 @@ authors:
   given-names: "Leonie"
 - family-names: "Bosse"
   given-names: "Sottmann"
-title: "Unrelevant - Calculate isochronal accessibility of categorized OSM tags by disatnce and time."
+title: "Unrelevant - Calculate isochronal accessibility of categorized OSM tags by distance and time."
 version: 1.0.0
 date-released: 2021-10-19
 url: "https://github.com/MichaelsJP/Unrelevant"
