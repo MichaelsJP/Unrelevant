@@ -135,36 +135,6 @@ Unrelevant supports the following scenarios:
 - recreation
 ```
 
-### Exemplary Recreational Results
-
-The `recreation` scenario queries possible "Green and Recreational POIs" from the OHSOME API and calculates isochrones from
-each location. The isochrones represent a theoretical spatial coverage for the accessibility of the surrounding population.
-The population is calculated for each category based on the isochrones.
-The irochrones can be calculated using distance or time. For the `valhalla` routing engine only time is possible since distance is only
-implemented in the OpenRouteService engine.
-
-- When using `OpenRouteService` the population size inside the isochrones is included. The data is derived from
-  the `GHSL - Global Human Settlement Layer` from [https://ghsl.jrc.ec.europa.eu/ghs_pop2019.php](https://ghsl.jrc.ec.europa.eu/ghs_pop2019.php).
-- The OHSOME Base query is: `healthcare:speciality=vaccination or vaccination=covid19 or healthcare=vaccination_centre`.
-
-Example Results:
-
-| Description                                                                                                       | Map Results                                                                                                                                           |
-|-------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Category Green Areas with 300 second Isochrones from openrouteservice with the profiles food-walking and bicycle. | **Extract from the city of Munich**: ![munich 300 seconds isochrone walking bicycle](static/figures/greenAreas_300_pedestrian_bicycle_muenchen.png )      |
-| Category Historic with 300 second Isochrones from openrouteservice with the profiles food-walking and bicycle.    | **Extract from the city of Stuttgart**: ![stuttgart 300 seconds isochrone walking bicycle](static/figures/historic_300_pedestrian_bicycle_stuttgart.png ) |
-| Category Tourism with 300 second Isochrones from openrouteservice with the profiles food-walking and bicycle.     | **Extract from the city of Munich**: ![munich 300 seconds isochrone walking bicycle](static/figures/tourism_300_pedestrian_bicycle_muenchen.png)          |
-
-| Description                                               | Statistical Results                                                                   |
-|-----------------------------------------------------------|---------------------------------------------------------------------------------------|
-| Count POIs absolute                                       | ![pois abosoute](static/figures/count_pois_total.pn )                                 |
-| Count POIs per category                                   | ![pois per category per city](static/figures/count_pois_per_category.png )            |
-| Profile cycling 300 seconds results per category and city | ![300 seconds isochrone bicycle](static/figures/cycling_300_overview_condensed_2.png) |
-| Profile walking 300 seconds results per category and city | ![300 seconds isochrone walking](static/figures/foot_300_overview_condensed_2.png)    |
-| Profile cycling 450 seconds results per category and city | ![450 seconds isochrone bicycle](static/figures/cycling_450_overview_condensed.png)   |
-| Profile walking 450 seconds results per category and city | ![450 seconds isochrone walking](static/figures/foot_450_overview_condensed_2.png)    |
-
-
 ## Usage
 
 After installation, `unrelevant` can be called from the commandline as executable:
@@ -223,7 +193,6 @@ Defines the list of cities with bounding boxes for faster ohsome querying. e.g.:
      "Dortmund": "7.302442,51.415525,7.638157,51.600041",
      "Essen": "6.894344,51.347571,7.13765,51.534202"
 }
-
 ```
 The ohsome query is `boundary=administrative and name={city_name}`. `{city_name}` stands for the iterative expansion with the names from the list.
 Make sure that the city names are actual names in OSM.
@@ -316,3 +285,92 @@ To run the example run from the root folder with a prepared environment:
 python runner.py -c config.ini
 ```
 Adjust the config.ini according to your needs.
+
+
+### Exemplary Recreational Results
+
+The `recreation` scenario queries possible "Green and Recreational POIs" from the OHSOME API and calculates isochrones from
+each location. The isochrones represent a theoretical spatial coverage for the accessibility of the surrounding population.
+The population is calculated for each category based on the isochrones.
+The irochrones can be calculated using distance or time. For the `valhalla` routing engine only time is possible since distance is only
+implemented in the OpenRouteService engine.
+
+- The population data is derived from the `GHSL - Global Human Settlement Layer` from [https://ghsl.jrc.ec.europa.eu/ghs_pop2019.php](https://ghsl.jrc.ec.europa.eu/ghs_pop2019.php).
+- The OHSOME Base queries for city boundaries is:`boundary=administrative and name={city_name}` and for pois: `{tag} or {tag}...`.
+
+#### config.ini parameters
+```ini
+[DEFAULT]
+Scenario = recreation
+Provider = ors
+Profile = bicycle
+Ranges = [150, 300, 450]
+Range_Type = time
+Output_Folder = ./output
+Verbosity = info
+Cities = {
+         "Berlin": "13.08835,52.33826,13.76116,52.67551",
+         "Hamburg": "8.1053,53.3951,10.3253,54.0277",
+         "München": "11.2809,48.0167,11.8247,48.3043",
+         "Köln": "6.7725,50.8304,7.162,51.085",
+         "Frankfurt am Main": "8.471825,50.015543,8.800472,50.227141",
+         "Stuttgart": "9.038601,48.692019,9.31582,48.866399",
+         "Düsseldorf": "6.688814,51.124375,6.939885,51.352532",
+         "Leipzig": "12.236652,51.23817,12.542441,51.448114",
+         "Dortmund": "7.302442,51.415525,7.638157,51.600041",
+         "Essen": "6.894344,51.347571,7.13765,51.534202"
+         }
+Threads = 10
+Tags = {
+   "greenAreas":
+       {
+       "leisure":"park",
+       "landuse":"grass",
+       "landuse":"recreation_ground",
+       "landuse":"meadow"
+   },
+   "water":{
+       "leisure": "swimming_area",
+       "natural": "beach",
+       "leisure": "beach_resort",
+       "water": "lake",
+       "water": "reservoir",
+       "water": "pond"
+   },
+   "historic":{
+       "historic": "monument",
+       "historic": "ruins",
+       "historic": "castle",
+       "historic": "fort",
+       "historic": "memorial"
+   },
+   "tourism":{
+       "tourism": "viewpoint",
+       "tourism": "attraction",
+       "natural": "peak",
+       "tourism": "picnic_site",
+       "leisure": "firepit",
+       "amenity": "bbq",
+       "amenity": "biergarten",
+       "tourism": "camp_site",
+       "tourism": "camp_pitch",
+       "tourism": "caravan_site"
+    }
+}
+
+#### Results
+```
+| Description                                                                                                       | Map Results                                                                                                                                           |
+|-------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Category Green Areas with 300 second Isochrones from openrouteservice with the profiles food-walking and bicycle. | **Extract from the city of Munich**: ![munich 300 seconds isochrone walking bicycle](static/figures/greenAreas_300_pedestrian_bicycle_muenchen.png )      |
+| Category Historic with 300 second Isochrones from openrouteservice with the profiles food-walking and bicycle.    | **Extract from the city of Stuttgart**: ![stuttgart 300 seconds isochrone walking bicycle](static/figures/historic_300_pedestrian_bicycle_stuttgart.png ) |
+| Category Tourism with 300 second Isochrones from openrouteservice with the profiles food-walking and bicycle.     | **Extract from the city of Munich**: ![munich 300 seconds isochrone walking bicycle](static/figures/tourism_300_pedestrian_bicycle_muenchen.png)          |
+
+| Description                                               | Statistical Results                                                                   |
+|-----------------------------------------------------------|---------------------------------------------------------------------------------------|
+| Count POIs absolute                                       | ![pois abosoute](static/figures/count_pois_total.pn )                                 |
+| Count POIs per category                                   | ![pois per category per city](static/figures/count_pois_per_category.png )            |
+| Profile cycling 300 seconds results per category and city | ![300 seconds isochrone bicycle](static/figures/cycling_300_overview_condensed_2.png) |
+| Profile walking 300 seconds results per category and city | ![300 seconds isochrone walking](static/figures/foot_300_overview_condensed_2.png)    |
+| Profile cycling 450 seconds results per category and city | ![450 seconds isochrone bicycle](static/figures/cycling_450_overview_condensed.png)   |
+| Profile walking 450 seconds results per category and city | ![450 seconds isochrone walking](static/figures/foot_450_overview_condensed_2.png)    |
