@@ -1,4 +1,4 @@
-# Unrelevant Proof-of-Concept
+# **U**niversal **n**on-exclusive **r**iser (to) **e**levate **v**isualization **a**ccessibility (and) **n**escience `(Unrelevant)` Proof-of-Concept
 - [Concept](#concept)
 - [Dependencies](#dependencies)
 - [Installation](#installation)
