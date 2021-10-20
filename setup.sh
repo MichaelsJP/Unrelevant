@@ -37,12 +37,13 @@ OPTIONS (setup the project):
   -r <REFRESH_DOCKER>        Refresh the docker setup if it exists.
   -o <OUT_DIRECTORY>         Provide an output directory.
   -w <OVERWRITE_OUTPUT>      Provide to overwrite the output directory it exists.
+  -p <POPUPLATION_DATASET    Provide the path to your population data set in tif format.
   -h                         Print help
   -v                         Print the script version
 
 EXAMPLES:
 # Remote configs with ors tag checkout
-./setup.sh -o output
+./setup.sh -o output -p ./population.tif
 
 HERE
 }
@@ -70,65 +71,6 @@ POPULATION_TABLE="wpop"
 # Initialize main functions                                                    #
 ################################################################################
 
-download_population_dataset() {
-  local current_directory=$PWD
-  # shellcheck disable=SC2164
-  cd "$START_DIRECTORY"
-#  local dataset_url="https://cidportal.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_MT_GLOBE_R2019A/GHS_POP_E2015_GLOBE_R2019A_4326_9ss/V1-0/GHS_POP_E2015_GLOBE_R2019A_4326_9ss_V1_0.zip"
-  local dataset_url="https://cidportal.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_MT_GLOBE_R2019A/GHS_POP_E2015_GLOBE_R2019A_4326_9ss/V1-0/GHS_POP_E2015_GLOBE_R2019A_4326_9ss_V1_0.zip"
-  local dataset_zip_local_path="${START_DIRECTORY}/data/population.zip"
-  local dataset_tif_local_path="${START_DIRECTORY}/data/population.tif"
-  if [ -e "${dataset_tif_local_path}" ]; then
-    say "Population dataset exists. Skipping download."
-    echo "${dataset_tif_local_path}"
-  else
-    say "Download the population dataset. This will take some time."
-    curl --header "Host: jeodpp.jrc.ec.europa.eu" --header "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.99 Safari/537.36" --header "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9" --header "Accept-Language: en-US,en;q=0.9,de-DE;q=0.8,de;q=0.7,en-GB;q=0.6" --header "Connection: keep-alive" "${dataset_url}" -L -o "${dataset_zip_local_path}"
-    say "Successfully downloaded ${dataset_zip_local_path}."
-    say "Extracting ${dataset_zip_local_path}."
-    unzip "${dataset_zip_local_path}" -d "${START_DIRECTORY}/data/temp"
-    say "Copy correct population data to  ${dataset_tif_local_path}."
-    cp "${START_DIRECTORY}"/data/temp/*.tif "${dataset_tif_local_path}"
-    rm -r "${START_DIRECTORY}/data/temp"
-  fi
-  # shellcheck disable=SC2164
-  cd "$current_directory"
-}
-
-download_germany_osm_pbf_dataset() {
-  local current_directory=$PWD
-  # shellcheck disable=SC2164
-  cd "$START_DIRECTORY"
-  local dataset_url="http://download.geofabrik.de/europe/germany-latest.osm.pbf"
-  local dataset_zip_local_path="${START_DIRECTORY}/data/germany.osm.pbf"
-  if [ -e "${dataset_zip_local_path}" ]; then
-    say "OSM dataset exists. Skipping download."
-    echo "${dataset_zip_local_path}"
-  else
-    say "Download the osm dataset. This will take some time."
-    curl --header "Host: download.geofabrik.de" --header "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36" --header "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9" --header "Accept-Language: en-US,en;q=0.9,de-DE;q=0.8,de;q=0.7,en-GB;q=0.6" "$dataset_url" -L -o "${dataset_zip_local_path}"
-    say "Successfully downloaded ${dataset_zip_local_path}."
-    echo "${dataset_zip_local_path}"
-  fi
-  # shellcheck disable=SC2164
-  cd "$current_directory"
-}
-
-download_ohsome_dataset() {
-  local dataset_url="https://downloads.ohsome.org/OSHDB/v0.6/europe/germany/baden-wuerttemberg/heidelberg_68900_2020-07-23.oshdb.mv.db"
-  local current_directory=$PWD
-  local dataset_zip_local_path="${current_directory}/ohsome.oshdb.mv.db"
-  if [ -e "${dataset_zip_local_path}" ]; then
-    say "Ohsome database exists. Skipping download."
-    echo "${dataset_zip_local_path}"
-  else
-    say "Download the ohsome database. This will take some time."
-    curl --header "Host: downloads.ohsome.org" --user-agent "Mozilla/5.0 (X11; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0" --header "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" --header "Accept-Language: en-US,en;q=0.5" --header "Upgrade-Insecure-Requests: 1" --header "Sec-Fetch-Dest: document" --header "Sec-Fetch-Mode: navigate" --header "Sec-Fetch-Site: none" --header "Sec-Fetch-User: ?1" "$dataset_url" --output "${dataset_zip_local_path}"
-    say "Successfully downloaded ${dataset_zip_local_path}."
-    echo "${dataset_zip_local_path}"
-  fi
-}
-
 ################################################################################
 ################################################################################
 # Main program                                                                 #
@@ -145,7 +87,7 @@ main() {
   check_program_installed python
   check_program_installed unzip
 
-  while builtin getopts "hvrwo:" opt "${@}"; do
+  while builtin getopts "hvrwo:p:" opt "${@}"; do
     case $opt in
     h)
       usage
@@ -166,6 +108,13 @@ main() {
       CheckWriteAccess "$OUT_DIRECTORY"
       OUT_DIRECTORY=$(realpath "$OUT_DIRECTORY")
       ;;
+    p)
+      POPULATION_DATASET_PATH=$OPTARG
+      if ! [[ -f "$POPULATION_DATASET_PATH" ]]; then
+        err "You must provide an existing  population data set."
+      fi
+      POPULATION_DATASET_PATH=$(realpath "$POPULATION_DATASET_PATH")
+      ;;
     w)
       OVERWRITE_OUTPUT=true
       ;;
@@ -184,18 +133,13 @@ main() {
 
   # Initialize helper variables
   # Check mandatory
+  check_mandatory_argument "POPULATION_DATASET" "$POPULATION_DATASET_PATH"
   check_mandatory_argument "OUT_DIRECTORY" "$OUT_DIRECTORY"
   check_mandatory_argument "OVERWRITE_OUTPUT" "$OVERWRITE_OUTPUT" false
   check_mandatory_argument "REFRESH_DOCKER" "$REFRESH_DOCKER" false
 
   # Create output folder
   OUT_DIRECTORY=$(create_folder "$OUT_DIRECTORY" "$OVERWRITE_OUTPUT")
-
-  # Get the population data set
-  POPULATION_DATASET_PATH=$(download_population_dataset)
-
-  # Get the germany pbf data set
-  OSM_GERMANY_DATASET_PATH=$(download_germany_osm_pbf_dataset)
 
   # Unpack the shipped nuts boundaries
   say "Unpack the nuts boundary layers:"
@@ -245,10 +189,6 @@ main() {
     sleep 1
   done
 
-  # Setting defaults
-  #  check_mandatory_argument "CONFIG_PREFIX" "$CONFIG_PREFIX" "app.config."
-  #  check_mandatory_argument "CONFIG_POSTFIX" "$CONFIG_POSTFIX" ".json"
-  #  check_mandatory_argument "OVERWRITE_OUTPUT" "$OVERWRITE_OUTPUT" "false"
   cleanup
 }
 # Must be the last statement
