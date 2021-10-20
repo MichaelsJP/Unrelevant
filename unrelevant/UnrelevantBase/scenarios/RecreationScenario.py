@@ -140,7 +140,7 @@ class RecreationScenario(BaseScenario):
             task[i][3],
             task[i][4],
         )) for i in range(len(task))]
-        pool = TqdmMultiProcessPool(5)
+        pool = TqdmMultiProcessPool(self._threads)
         with tqdm.tqdm(total=len(initial_tasks),
                        dynamic_ncols=True,
                        unit="Boundaries") as global_progress:

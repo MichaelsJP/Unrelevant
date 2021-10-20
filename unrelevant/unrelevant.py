@@ -56,8 +56,6 @@ def main():
     scenario = config["DEFAULT"].get("Scenario", fallback="recreation")
     profile = config["DEFAULT"].get("Profile", fallback="car")
     cities = json.loads(config["DEFAULT"].get("Cities"))
-    bbox = config["DEFAULT"].get(
-        "Bbox", fallback="8.667398,49.407718,8.719677,49.412392")
     ranges = json.loads(config["DEFAULT"].get(
         "Ranges", fallback="[600, 1200, 1800, 3600]"))
     tags = json.loads(config["DEFAULT"].get("Tags"))
