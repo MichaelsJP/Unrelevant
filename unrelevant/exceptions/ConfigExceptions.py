@@ -1,5 +1,5 @@
-from yact.YactBase.Provider import BaseProvider
-from yact.exceptions.BaseExceptions import BaseError
+from unrelevant.UnrelevantBase.Provider import BaseProvider
+from unrelevant.exceptions.BaseExceptions import BaseError
 
 
 class ConfigFileNotFoundError(BaseError):  # pragma: no cover

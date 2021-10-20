@@ -2,8 +2,8 @@ import json
 import logging
 from geopandas import GeoDataFrame
 
-from yact.YactBase.Provider.BaseProvider import BaseProvider
-from yact.YactBase.scenarios.BaseScenario import BaseScenario
+from unrelevant.UnrelevantBase.Provider.BaseProvider import BaseProvider
+from unrelevant.UnrelevantBase.scenarios.BaseScenario import BaseScenario
 
 logger = logging.getLogger()
 

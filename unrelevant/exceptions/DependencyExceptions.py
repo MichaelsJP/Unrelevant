@@ -1,4 +1,4 @@
-from yact.exceptions.BaseExceptions import BaseError
+from unrelevant.exceptions.BaseExceptions import BaseError
 
 
 class DependencyNotFoundError(BaseError):  # pragma: no cover

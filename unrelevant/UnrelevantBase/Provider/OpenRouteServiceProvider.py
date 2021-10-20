@@ -2,8 +2,8 @@ import logging
 
 from openrouteservice import Client
 
-from yact.YactBase.Provider.BaseProvider import BaseProvider
-from yact.exceptions.ProviderExceptions import ProfileNotImplementedError
+from unrelevant.UnrelevantBase.Provider.BaseProvider import BaseProvider
+from unrelevant.exceptions.ProviderExceptions import ProfileNotImplementedError
 
 
 class OpenRouteServiceProvider(BaseProvider):

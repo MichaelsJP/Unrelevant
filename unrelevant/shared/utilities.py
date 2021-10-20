@@ -1,7 +1,7 @@
 import logging
 from shutil import which
 
-from yact.exceptions.DependencyExceptions import DependencyNotFoundError
+from unrelevant.exceptions.DependencyExceptions import DependencyNotFoundError
 
 logger = logging.getLogger(__name__)
 

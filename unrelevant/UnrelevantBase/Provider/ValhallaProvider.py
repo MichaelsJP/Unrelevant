@@ -2,8 +2,8 @@ import logging
 
 from routingpy import MapboxValhalla, Valhalla
 
-from yact.YactBase.Provider.BaseProvider import BaseProvider
-from yact.exceptions.ProviderExceptions import ProfileNotImplementedError
+from unrelevant.UnrelevantBase.Provider.BaseProvider import BaseProvider
+from unrelevant.exceptions.ProviderExceptions import ProfileNotImplementedError
 
 logger = logging.getLogger()
 

@@ -13,10 +13,10 @@ from ohsome import OhsomeClient
 from openrouteservice.exceptions import ApiError
 from routingpy.exceptions import RouterApiError
 
-from yact.YactBase.Provider.BaseProvider import BaseProvider
-from yact.exceptions.BaseExceptions import OhsomeExtentNotFoundError
-from yact.exceptions.IsochronesExceptions import IsochronesCalculationError
-from yact.exceptions.ProviderExceptions import WrongAPIKeyError
+from unrelevant.UnrelevantBase.Provider.BaseProvider import BaseProvider
+from unrelevant.exceptions.BaseExceptions import OhsomeExtentNotFoundError
+from unrelevant.exceptions.IsochronesExceptions import IsochronesCalculationError
+from unrelevant.exceptions.ProviderExceptions import WrongAPIKeyError
 
 logger = logging.getLogger()
 

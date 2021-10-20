@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "yact"
+name = "unrelevant"
 version = "0.1.0"
 description = "Yet Another Cactus. Gives you functionality you never knew you could need. Enjoy!"
 authors = ["Julian Psotta <julianpsotta@gmail.com>", "Bosse Sottmann <n258@stud.uni-heidelberg.de>"]
@@ -25,9 +25,6 @@ psycopg2 = "^2.9.1"
 Rtree = "^0.9.7"
 ujson = "^4.2.0"
 GeoAlchemy2 = "^0.9.4"
-
-[tool.poetry.scripts]
-yact = "yact.yact:main"
 
 [tool.poetry.dev-dependencies]
 pytest-console-scripts = "^1.1.0"

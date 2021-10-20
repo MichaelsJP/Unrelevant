@@ -1,7 +1,7 @@
 import logging
 from abc import ABCMeta
 
-from yact.exceptions.ProviderExceptions import MissingAPIKeyError
+from unrelevant.exceptions.ProviderExceptions import MissingAPIKeyError
 
 logger = logging.getLogger()
 

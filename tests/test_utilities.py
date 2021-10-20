@@ -1,7 +1,7 @@
 import pytest
 
-from yact.exceptions.DependencyExceptions import DependencyNotFoundError
-from yact.shared.utilities import dependency_check
+from unrelevant.exceptions.DependencyExceptions import DependencyNotFoundError
+from unrelevant.shared.utilities import dependency_check
 
 
 @pytest.mark.parametrize('dependency', ["sh", "watch"])

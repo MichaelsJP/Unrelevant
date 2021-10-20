@@ -8,22 +8,22 @@ from datetime import datetime
 
 import pkg_resources
 
-__version__ = pkg_resources.get_distribution("yact").version
+__version__ = pkg_resources.get_distribution("unrelevant").version
 
-from yact.YactBase.Provider.HereProvider import HereProvider
-from yact.YactBase.Provider.OpenRouteServiceProvider import OpenRouteServiceProvider
-from yact.YactBase.Provider.ValhallaProvider import ValhallaProvider
-from yact.YactBase.scenarios.RecreationScenario import RecreationScenario, PopulationFetcher
-from yact.YactBase.scenarios.BaseScenario import BaseScenario
-from yact.YactBase.scenarios.VaccinationScenario import VaccinationScenario
-from yact.exceptions.BaseExceptions import ProviderNotImplementedError, ScenarioNotImplementedError
-from yact.exceptions.ConfigExceptions import ConfigFileNotFoundError
-from yact.shared.utilities import dependency_check
+from unrelevant.UnrelevantBase.Provider.HereProvider import HereProvider
+from unrelevant.UnrelevantBase.Provider.OpenRouteServiceProvider import OpenRouteServiceProvider
+from unrelevant.UnrelevantBase.Provider.ValhallaProvider import ValhallaProvider
+from unrelevant.UnrelevantBase.scenarios.RecreationScenario import RecreationScenario, PopulationFetcher
+from unrelevant.UnrelevantBase.scenarios.BaseScenario import BaseScenario
+from unrelevant.exceptions.BaseExceptions import ProviderNotImplementedError, ScenarioNotImplementedError
+from unrelevant.exceptions.ConfigExceptions import ConfigFileNotFoundError
+from unrelevant.shared.utilities import dependency_check
 
 script_path = os.path.dirname(os.path.realpath(__file__))
 config = configparser.ConfigParser()
 
-parser = argparse.ArgumentParser(description='yact command line utility')
+parser = argparse.ArgumentParser(
+    description='"Unrelevant" command line utility')
 
 parser.add_argument('--version', action='version', version=f'{__version__}')
 

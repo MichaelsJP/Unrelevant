@@ -3,8 +3,8 @@ import logging
 from geojson import FeatureCollection, Polygon, Feature
 from routingpy import HereMaps
 
-from yact.YactBase.Provider.BaseProvider import BaseProvider
-from yact.exceptions.ProviderExceptions import ProfileNotImplementedError
+from unrelevant.UnrelevantBase.Provider.BaseProvider import BaseProvider
+from unrelevant.exceptions.ProviderExceptions import ProfileNotImplementedError
 
 logger = logging.getLogger(__name__)
 
