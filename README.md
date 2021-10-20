@@ -92,7 +92,7 @@ After the data download prepare the `docker-compose.yml` setup:
 Run the setup script:
 ```text
 chomd +x setup.sh
-./setup.sh
+./setup.sh -p ./your_population.tif
 ```
 This will take care of the docker-compose setup. The bigger the population tif and osm.pbf for openrouteservice is, the longer the preparation will take.
 To see individual container output you can run one of the following comands:
