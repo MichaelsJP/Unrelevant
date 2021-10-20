@@ -141,11 +141,6 @@ main() {
   # Create output folder
   OUT_DIRECTORY=$(create_folder "$OUT_DIRECTORY" "$OVERWRITE_OUTPUT")
 
-  # Unpack the shipped nuts boundaries
-  say "Unpack the nuts boundary layers:"
-  NUTS_DATASET_PATH="$START_DIRECTORY/data/nuts.tar.xz"
-  tar -xvf "$NUTS_DATASET_PATH" -C "$START_DIRECTORY/data"
-
   # Refresh the docker setup
   if [ "$REFRESH_DOCKER" == "true" ] || [ "$REFRESH_DOCKER" == "True" ] || [ "$REFRESH_DOCKER" == "TRUE" ]; then
     say "Refreshing docker setup."
@@ -164,8 +159,6 @@ main() {
     CONTAINER_STATUS=$(docker exec -it "$DOCKER_DATABASE_CONTAINER_NAME" /bin/bash -c "export PGPASSWORD=admin && pg_isready -U admin -h postgres;")
     sleep 1
   done
-
-#  docker exec -it "$DOCKER_DATABASE_CONTAINER_NAME" /bin/bash -c "export PGPASSWORD=admin && psql -h postgres -U admin gis -c 'CREATE EXTENSION IF NOT EXISTS postgis_raster';"
 
   # Copy the population dataset to the container
   docker cp "$POPULATION_DATASET_PATH" "$DOCKER_DATABASE_CONTAINER_NAME":/scripts/population.tif
