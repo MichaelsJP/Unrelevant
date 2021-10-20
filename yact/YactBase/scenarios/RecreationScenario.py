@@ -239,7 +239,7 @@ class RecreationScenario(BaseScenario):
         Error catch function for aborted or failed threads. No deep usage besides printing an error.
         @param result:
         """
-        logger.error(f"Error calculating result for: {result}")
+        logger.error(f"Error calculating result in thread.")
 
     def _get_isochrones(
             self,
@@ -268,6 +268,8 @@ class RecreationScenario(BaseScenario):
                                                 self._done_callback)
 
             for processed_isochrone in processed_isochrones:
+                if len(processed_isochrone) <= 0:
+                    continue
                 for key, value in processed_isochrone['filterQuery'].items():
                     if f"{key}={value}" in filter_query and f"{key}={value}" not in isochrones:
                         isochrones[f"{key}={value}"] = [processed_isochrone]
@@ -294,10 +296,11 @@ class RecreationScenario(BaseScenario):
         total_population = self._population_fetcher.get_population_data(
             boundary.geometry.get(0).to_wkt())
         for tag in isochrones:
-            if not isinstance(isochrones[tag], list):
+            if not isinstance(isochrones[tag],
+                              list) or len(isochrones[tag]) <= 0:
                 continue
             for feature in isochrones[tag]:
-                if len(feature.values()) <= 0:
+                if len(feature.values()) <= 0 or 'features' not in feature:
                     continue
                 if gdf_tags.empty:
                     gdf_tags = GeoDataFrame.from_features(feature)
@@ -478,13 +481,16 @@ class RecreationScenario(BaseScenario):
                         category]:
                     cities_data[city]['isochrones'][category][
                         'results_points'] = {}
-                cities_data[city]['isochrones'][category][
-                    'results_category'] = json.loads(gdf_category.to_json())
-                cities_data[city]['isochrones'][category][
-                    'results_tags'] = json.loads(gdf_tags.to_json())
-                cities_data[city]['isochrones'][category][
-                    'results_points'] = json.loads(gdf_points.to_json())
-
+                try:
+                    cities_data[city]['isochrones'][category][
+                        'results_category'] = json.loads(
+                            gdf_category.to_json())
+                    cities_data[city]['isochrones'][category][
+                        'results_tags'] = json.loads(gdf_tags.to_json())
+                    cities_data[city]['isochrones'][category][
+                        'results_points'] = json.loads(gdf_points.to_json())
+                except Exception as err:
+                    logger.error(err)
             # Total statistics
             gdf_city = gdf_city.dissolve()
             gdf_city['population'] = 0.0

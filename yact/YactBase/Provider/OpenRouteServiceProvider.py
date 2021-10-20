@@ -21,6 +21,8 @@ class OpenRouteServiceProvider(BaseProvider):
             self._profile = "driving-car"
         elif "pedestrian" in profile:
             self._profile = "foot-walking"
+        elif "bicycle" in profile:
+            self._profile = "cycling-regular"
         else:
             raise ProfileNotImplementedError(profile, self._name)
 

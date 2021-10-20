@@ -34,6 +34,6 @@ class WrongAPIKeyError(BaseError):  # pragma: no cover
         provider -- the name of the provider
     """
 
-    def __init__(self, provider: BaseProvider):
-        self.message = f"API Key set but wrong/rejected. Provider: {provider.provider_name}"
+    def __init__(self, provider: BaseProvider, error):
+        self.message = f"API Key set but wrong/rejected. Provider: {provider} with error: {error}"
         super().__init__(self.message)

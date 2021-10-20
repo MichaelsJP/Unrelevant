@@ -76,11 +76,16 @@ class BaseScenario(object):
         data = {}
         try:
             data = self._provider.isochrones(coords, ranges, self._range_type)
-        except (RouterApiError, ApiError):
-            raise WrongAPIKeyError(provider=self._provider)
+        except (RouterApiError) as err:
+            logger.warning(
+                f"API error calculating isochrone. Coords:{coords}, Ranges: {ranges}"
+            )
+            return {}
         except Exception as err:
-            raise IsochronesCalculationError(coords=coords,
-                                             provider=self._provider)
+            logger.warning(
+                f"Unknown error calculating isochrone. Coords:{coords}, Ranges: {ranges}"
+            )
+            return {}
         global_tqdm.update()
         data['filterQuery'] = filter_query
         return data
